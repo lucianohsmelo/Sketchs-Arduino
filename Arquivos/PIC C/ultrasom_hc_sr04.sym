@@ -1,0 +1,96 @@
+004-005 @READ_PROGRAM_MEMORY8.P1
+004     @WRITE_PROGRAM_MEMORY8.P2
+007     PORTC
+007.0   Trig
+007.1   Echo
+008     PSP_DATA
+008     PORTD
+008     LCD
+008.2   EN
+008.3   RS
+015-016 CCP_1
+015     CCP_1_LOW
+016     CCP_1_HIGH
+01B     CCP_2_LOW
+01B-01C CCP_2
+01C     CCP_2_HIGH
+021-022 ler_US.vl_timer
+021     linha_1_lcd.posicao
+021     MAIN.@SCRATCH1
+022     linha_1_lcd.@SCRATCH1
+022     MAIN.@SCRATCH2
+023-024 ler_US.distancia
+023-024 exibe_distancia.distancia
+023     linha_1_lcd.@SCRATCH2
+024     comando_lcd.comando
+025     comando_lcd.com_temp
+025-026 exibe_distancia.x
+025     ler_US.@SCRATCH1
+026     ler_US.@SCRATCH2
+027-028 @MUL1616.P1
+027     caracter_lcd.caracter
+027     ler_US.@SCRATCH3
+028     caracter_lcd.caracter_temp
+028-029 @DIV1616.P1
+028     ler_US.@SCRATCH4
+029     @delay_ms1.P1
+029-02A @MUL1616.P2
+02A-02B @DIV1616.P1
+02B     @MUL1616.@SCRATCH1
+02C     @DIV1616.@SCRATCH1
+077     @SCRATCH
+078     @SCRATCH
+078     _RETURN_
+079     @SCRATCH
+07A     @SCRATCH
+07B     @SCRATCH
+09C.6   C1OUT
+09C.7   C2OUT
+10D-10E @WRITE_PROGRAM_MEMORY8.P1
+10D-10E @READ_PROGRAM_MEMORY8.P2
+
+ROM Allocation:
+0004  @delay_ms1
+0063  linha_1_lcd
+003E  configura_lcd
+0057  inicio_lcd
+005D  limpa_lcd
+0076  caracter_lcd
+0019  comando_lcd
+003E  quatro_bit_lcd
+01A6  MAIN
+00C1  ler_US
+00EA  @MUL1616
+009C  @DIV1616
+0118  exibe_distancia
+01A6  @cinit
+
+Project Directory:
+    D:\Projetos\Produtos ML\Ultrasom HC-SR04\
+
+Project Files:
+    ultrasom_hc_sr04.c
+    C:\Arquivos de programas\PICC\devices\16F877A.h
+    LCD_MSS.h
+
+Units:
+    D:\Projetos\Produtos ML\Ultrasom HC-SR04\ultrasom_hc_sr04.c (main)
+
+Compiler Settings:
+    Processor:      PIC16F877A
+    Pointer Size:   16
+    ADC Range:      0-255
+    Opt Level:      9
+    Short,Int,Long: UNSIGNED: 1,8,16
+    Float,Double:   32,32
+
+Output Files:
+    Errors:      ultrasom_hc_sr04.err
+    Ext Symbols: ultrasom_hc_sr04.esym
+    INHX8:       ultrasom_hc_sr04.hex
+    Symbols:     ultrasom_hc_sr04.sym
+    List:        ultrasom_hc_sr04.lst
+    Debug/COFF:  ultrasom_hc_sr04.cof
+    Project:     ultrasom_hc_sr04.PJT
+    Call Tree:   ultrasom_hc_sr04.tre
+    Statistics:  ultrasom_hc_sr04.sta

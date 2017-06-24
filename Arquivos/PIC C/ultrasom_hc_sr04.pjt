@@ -1,0 +1,28 @@
+[PROJECT]
+Target=D:\Projetos\Produtos ML\Ultrasom HC-SR04\ultrasom_hc_sr04.hex
+Development_Mode=
+Processor_Text=PIC16F877A
+ToolSuite=CCS
+Processor=0x877A
+[D:\Projetos\Produtos ML\Ultrasom HC-SR04\ultrasom_hc_sr04]
+Type=4
+Path=
+FileList=
+BuildTool=
+OptionString=
+AdditionalOptionString=
+[mru-list]
+1=D:\Projetos\Produtos ML\Ultrasom HC-SR04\ultrasom_hc_sr04.c
+[Windows]
+0=0000 %S 0 0 796 451 3 0
+[Opened Files]
+1=ultrasom_hc_sr04.c
+2=LCD_MSS.h
+3=..\Display LCD\MSS_LCD.c
+4=
+[Target Data]
+OptionString=-p +FM
+FileList=D:\Projetos\Produtos ML\Ultrasom HC-SR04\ultrasom_hc_sr04.c
+[Units]
+Count=1
+1=ultrasom_hc_sr04.c (main)

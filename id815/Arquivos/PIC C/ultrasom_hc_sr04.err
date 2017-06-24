@@ -1,0 +1,3 @@
+>>> Warning 203 "ultrasom_hc_sr04.c" Line 105(1,1): Condition always TRUE
+      Memory usage:   ROM=7%      RAM=2% - 5%
+      0 Errors,  1 Warnings.
