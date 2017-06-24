@@ -1,0 +1,29 @@
+[PROJECT]
+Target=D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\dth11_pic.hex
+Development_Mode=
+Processor_Text=PIC16F877A
+ToolSuite=CCS
+Processor=0x877A
+[D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\dth11_pic]
+Type=4
+Path=
+FileList=
+BuildTool=
+OptionString=
+AdditionalOptionString=
+[mru-list]
+1=D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\dth11_pic.c
+[Windows]
+0=0000 %S 0 0 796 451 3 0
+[Opened Files]
+1=dth11_pic.c
+2=
+3=
+4=..\Ultrasom HC-SR04\ultrasom_hc_sr04.c
+5=
+[Target Data]
+OptionString=-p +FM
+FileList=D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\PIC C\dth11_pic.c
+[Units]
+Count=1
+1=dth11_pic.c (main)

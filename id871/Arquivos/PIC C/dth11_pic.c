@@ -1,0 +1,553 @@
+/******************************************************************************
+*  Programa: Teste do Sensor de Umidade e Temperatura DHT-11 com LCD 16x2     *
+*  Desenvolvedor: Misael S. Sales                                             *
+*  Versão: 1.0                                                                *
+*  Data: 03/11/2012                                                           *
+*  PIC: Linha 16F de 40 pinos (Para usar em outros mude o nome das portas )   *
+*  Display: HD44780                                                           *
+*  Sensor: DHT-11                                                             *
+*  Licença: Livre para uso e modificação                                      *
+*                                                                             *
+*  MSS Eletrônica - www.msseletronica.com - msseletronica@hotmail.com.br      *
+*                                                                             *
+*******************************************************************************/
+
+#include <16F877A.h> 
+#device *=16
+#device adc=8
+
+#FUSES NOWDT                    //No Watch Dog Timer
+#FUSES HS                       //High speed Osc (> 4mhz for PCM/PCH) (>10mhz for PCD)
+#FUSES NOPUT                    //No Power Up Timer
+#FUSES NOPROTECT                //Code not protected from reading
+#FUSES NODEBUG                  //No Debug mode for ICD
+#FUSES NOBROWNOUT               //No brownout reset
+#FUSES NOLVP                    //No low voltage prgming, B3(PIC16) or B5(PIC18) used for I/O
+#FUSES NOCPD                    //No EE protection
+#FUSES NOWRT                    //Program memory not write protected
+
+#use delay(clock=4000000) //Programa feito para trabalhar com cristal de 4Mhz
+
+#ZERO_RAM
+  
+#include <LCD_MSS.h>//Adiciona a nosso biblioteca para acionamento do diplay de LCD
+/******************************************************************************
+*  Ligações do LCD                                                            *
+*   D7 -> RD7 (PORTD 7)                                                       *
+*   D6 -> RD6 (PORTD 6)                                                       *
+*   D5 -> RD5 (PORTD 5)                                                       *
+*   D4 -> RD4 (PORTD 4)                                                       *
+*   RS -> RD3 (PORTD 3)                                                       *
+*   EN -> RD2 (PORTD 2)                                                       *
+*   R/W -> Deve ser conectado ao GND                                          *
+*   VCC -> Deve ser conectado ao +5V                                          *
+*   GND -> Deve ser conectado ao GND                                          *
+*   VO -> Deve ser conectado ao potenciômetro/trimpot de ajuste de brilho     *
+******************************************************************************/
+
+/******************************************************************************
+* Ligações do Sensor DHT-11                                                   *
+*  Out -> Pino RC0 do PORTC                                                   *
+*  "+" -> Deve ser conectado ao +5V                                           *
+*  "-" -> Deve ser conectado ao GND                                           *
+******************************************************************************/
+
+#use fast_io(c)//O controle de direção dos pinos (Entrada/Saida) será feito no programa
+#use fast_io(d)//O controle de direção dos pinos (Entrada/Saida) será feito no programa
+
+//Nomeação das portas
+#byte PORTC = 0x07 //Endereço do PORTC
+#byte PORTD = 0x08 //Endereço do PORTD
+
+//Nomeação dos pinos
+#bit SENSOR = PORTC.0 //Este pino deve ser conectado ao pino Out do Sensor DHT-11
+
+//Todos os pinos do PORTD estão ligados ao display (D0 a D7 aos RD0 a RD7)
+
+unsigned char TRISC = 0;
+#bit DIR_SENSOR = TRISC.0//Bit que irá mudar a direção do pino ligado ao sensor (Entrada(1) ou Saida(0))
+
+unsigned char RH_1 = 0; //Armazena a umidade relativa em integral
+unsigned char RH_2 = 0; //Armazena a umidade relativa em decimal
+unsigned char TEMP_1 = 0;//Armazena a temperatura em integral
+unsigned char TEMP_2 = 0;//Armazena a temperatura em decimal
+unsigned char CKSUN = 0;//Armazena o check sum da recepção
+
+unsigned char n_byte = 0;//Armazena o valor do byte lido (Enviado pelo sensor)
+
+unsigned char timeOut = 0;//Ajuda no processo de time Out, ou seja, no tempo limite para aguardar a resposta do sensor
+
+
+unsigned char tempo = 0;
+
+short ler_sensor(void); //Rotina que lê os valores atuais no sensor
+void exibe_dado(unsigned char);//Rotina que mostra os dados no display
+unsigned char ler_byte(void);//Rotina chamada pela ler_sensor() para ler cada byte enviado pelo sensor
+
+void main()
+{
+
+   setup_adc_ports(NO_ANALOGS);
+   setup_adc(ADC_OFF);
+   setup_psp(PSP_DISABLED);
+   setup_spi(SPI_SS_DISABLED);
+   setup_timer_1(T1_DISABLED);
+   setup_timer_2(T2_DISABLED,0,1);
+   setup_comparator(NC_NC_NC_NC);
+   setup_vref(FALSE);
+   // enable_interrupts(INT_RTCC);
+   //enable_interrupts(GLOBAL);
+
+   // TODO: USER CODE!!
+   setup_timer_0(RTCC_INTERNAL|RTCC_DIV_2); //Usando o TMR0 1:2
+   
+   DIR_SENSOR = 1;//Pino do sensor começa como entrada.
+   set_tris_c(TRISC);
+   
+   //Se você quiser mudar a direção dos outros pinos do PORTC, some o valor ao TRISC e depois chame set_tris_c(TRISC)
+   //Desta forma você não estará alterando a direção do pino do sensor, não use a função set_tris_c() com a configuração direta
+   
+   set_tris_d(0b00000000);
+   
+   configura_lcd();//Chama a rotina que realiza as configurações básicas para o LCD funcionar
+   inicio_lcd();//Coloca o cursor no inicio (Quando usado)
+   limpa_lcd();//Limpa os dados do display
+   
+   //Mensagem de apresentação
+   linha_1_lcd(2);
+   caracter_lcd('E');
+   caracter_lcd('X');
+   caracter_lcd('E');
+   caracter_lcd('M');
+   caracter_lcd('P');
+   caracter_lcd('L');
+   caracter_lcd('O');
+   caracter_lcd(' ');
+   caracter_lcd('D');
+   caracter_lcd('T');
+   caracter_lcd('H');
+   caracter_lcd('1');
+   caracter_lcd('1');
+   
+   linha_2_lcd(2);   
+   caracter_lcd('M');
+   caracter_lcd('S');
+   caracter_lcd('S');
+   caracter_lcd(' ');
+   caracter_lcd('E');
+   caracter_lcd('L');
+   caracter_lcd('E');
+   caracter_lcd('T');
+   caracter_lcd('R');
+   caracter_lcd('O');
+   caracter_lcd('N');
+   caracter_lcd('I');
+   caracter_lcd('C');
+   caracter_lcd('A');
+   
+   delay_ms(4000);//Aguarda 4 segundos
+   limpa_lcd();//Apaga a mensagem
+   //Fim da mensagem
+   
+   
+   while(1)//Loop infinito do programa
+      {
+      
+      if(ler_sensor())//Chama a rotina que lê o sensor e testa se a leitura foi realizada
+         {
+         //Não vamos exibir: RH_dec (Esta sempre em zero), TEMP_dec (Esta sempre em zero), CKSUN -> Usado para confirmar se o valor lido esta correto
+         
+         if((RH_1+RH_2+TEMP_1+TEMP_2)==CKSUN)//Testa se os dados da leitura que foram recebidos estão corretos
+            {
+            linha_1_lcd(1);//Coloca o LCD no primeiro caracter da primeira linha
+            caracter_lcd('R');
+            caracter_lcd('H');
+            caracter_lcd(':');
+            exibe_dado(RH_1);
+            caracter_lcd('%');
+            linha_2_lcd(1);//Coloca o LCD no primeiro caracter da segunda linha
+            caracter_lcd('T');
+            caracter_lcd('E');
+            caracter_lcd('M');
+            caracter_lcd('P');
+            caracter_lcd(':');
+            exibe_dado(TEMP_1);
+            caracter_lcd('C');           
+            }
+            else//Se não estiver, use este espaço para tratar o erro, ou exibir uma mensagem
+               {
+               limpa_lcd();
+               linha_1_lcd(1);
+               caracter_lcd('E');
+               caracter_lcd('R');
+               caracter_lcd('R');
+               caracter_lcd('O');
+               caracter_lcd('!');
+               }
+         }
+         else//Caso a leitura não seja realizado por algum erro, executa a rotina abaixo
+            {
+            limpa_lcd();
+            linha_1_lcd(1);
+            caracter_lcd('E');
+            caracter_lcd('R');
+            caracter_lcd('R');
+            caracter_lcd('O');
+            caracter_lcd('!');
+            }
+            
+      delay_ms(1000); //Garante o tempo mínimo para cada leitura no sensor (O fabricante pede 1s)
+      }
+
+}
+
+void exibe_dado(dado)
+   {
+   unsigned char x = 0;
+   
+   x = dado / 10; //Pega dezena e unidade de milhar, centena e desena (Ex: 12345, pega '1234') Inteiro de 12345/10
+   x = x % 10; //Pega a dezena (Ex: 12345, pega apenas '4') o resto da divisão 1234/10
+   x = x + 48;//Converte em caracter ASCII
+   caracter_lcd(x);//Envia para o LCD
+   
+   x = dado % 10;//Pega a unidade (Ex: 12345, pega apenas '5')  Resto de 12345/10
+   x = x + 48;//Converte em caracter ASCII
+   caracter_lcd(x);//Envia para o LCD  
+   
+   }
+
+short ler_sensor(void) 
+   {
+   RH_1 = 0;
+   RH_2 = 0;
+   TEMP_1 = 0;
+   TEMP_2 = 0;
+   CKSUN = 0;  //Inicia com todos os bytes em 0 (zero)
+   
+   DIR_SENSOR = 0;//Coloca o pino ligado ao Sensor como saida
+   set_tris_c(TRISC);
+   
+   SENSOR = 0; //Inicia o pedido de dados ao sensor
+   delay_ms(20);//Aguarda 20mS, para o Sensor detectar o pulso
+   
+   SENSOR = 1;//Coloca em nível alto novamente
+   DIR_SENSOR = 1;//Coloca o pino ligado ao Sensor como entrada
+   set_tris_c(TRISC);
+   
+   //Fazer timerOut
+   while(SENSOR){}//Aguarda o sensor confirmar que recebeu o comando
+   
+   set_timer0(0);//Reinicia o TMR0
+   
+   timeOut = 255;
+   while(!SENSOR)//Aguarda o tempo em nivel baixo (80us) antes de começar a receber os bits
+         {//Para entender melhor, olhe o datasheet
+         if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+         timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+         }
+   
+   tempo = get_timer0();//Le o tempo no TMR0
+   set_timer0(0);//Reinicia o TMR0 para a proxima contagem de tempo
+   tempo = tempo * 2;//Multiplica por 2 porque o prescaller esta 1:2
+   
+   if(tempo > 40)//Tempo informado no datasheet é de 80uS
+      {
+      timeOut = 255;
+      while(SENSOR)//Aguarda o tempo em nivel alto (80us) antes de começar a receber os bits
+            {//Para entender melhor, olhe o datasheet
+            if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+            timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+            }
+                     
+                     
+      tempo = get_timer0();
+      set_timer0(0);
+      tempo = tempo * 2;
+   
+      if(tempo > 40)//Tempo informado no datasheet é de 80uS
+         {         
+         RH_1 = ler_byte();//Le o 1º byte -> Este esta informando o umidade relativa
+         RH_2 = ler_byte();//Le o 2º byte -> Esta esta sempre vindo em zero
+         TEMP_1 = ler_byte();//Le o 3º byte -> Este esta informando a temperatura
+         TEMP_2 = ler_byte();//Le o 4º byte -> Esta esta sempre vindo em zero
+         CKSUN = ler_byte();//Le 0 5º byte -> CheckSum (É o resultado da soma dos 4 bytes anteriores)
+         }
+         else
+             {
+             return false;//Rotorna que ocorreu um erro na leitura
+             }
+       }
+       else
+            {
+            return false;//Rotorna que ocorreu um erro na leitura
+            }
+            
+       return true;//Informa que realizou a leitura
+}
+ 
+unsigned char ler_byte(void)//Rotina responsavel por ler cada byte enviado pelo sensor
+   {
+   n_byte = 0;
+   
+   //Primeiro recebemos o bit´s mais significativos
+   
+   //Bit 7
+   timeOut = 255;
+   while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS)
+      {
+      if(timeOut == 0){return false;}
+      timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+      }
+   
+   tempo = get_timer0();//Le o tempo no TMR1
+   set_timer0(0);//Reinicia o TMR1 para proxima leitura
+   tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2
+            
+   if(tempo > 25)//Ele fica em nivel baixo por 50 uS
+      {
+      
+      timeOut = 255;
+      while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1)
+         {
+         if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+         timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+         }
+      tempo = get_timer0();
+      set_timer0(0);
+      tempo = tempo * 2;
+                 
+      if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS
+         {
+         n_byte = n_byte + 0b10000000;//Set o Bit 7
+         }
+         //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0)
+      }
+   
+   //Bit 6
+   timeOut = 255;
+   while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS)
+      {
+      if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+      timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+      }
+   
+   tempo = get_timer0();//Le o tempo no TMR1
+   set_timer0(0);//Reinicia o TMR1 para proxima leitura
+   tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2
+            
+   if(tempo > 25)//Ele fica em nivel baixo por 50 uS
+      {
+      
+      timeOut = 255;
+      while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1)
+         {
+         if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+         timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+         }
+      tempo = get_timer0();
+      set_timer0(0);
+      tempo = tempo * 2;
+                 
+      if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS
+         {
+         n_byte = n_byte + 0b01000000;//Set o Bit 6
+         }
+         //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0)
+      }
+          
+   //Bit 5
+   timeOut = 255;
+   while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS)
+      {
+      if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+      timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+      }
+   
+   tempo = get_timer0();//Le o tempo no TMR1
+   set_timer0(0);//Reinicia o TMR1 para proxima leitura
+   tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2
+            
+   if(tempo > 25)//Ele fica em nivel baixo por 50 uS
+      {
+      
+      timeOut = 255;
+      while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1)
+         {
+         if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+         timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+         }
+      tempo = get_timer0();
+      set_timer0(0);
+      tempo = tempo * 2;
+                 
+      if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS
+         {
+         n_byte = n_byte + 0b00100000;//Set o Bit 5
+         }
+         //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0)
+      }
+      
+   //Bit 4
+   timeOut = 255;
+   while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS)
+      {
+      if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+      timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+      }
+   
+   tempo = get_timer0();//Le o tempo no TMR1
+   set_timer0(0);//Reinicia o TMR1 para proxima leitura
+   tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2
+            
+   if(tempo > 25)//Ele fica em nivel baixo por 50 uS
+      {
+      
+      timeOut = 255;
+      while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1)
+         {
+         if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+         timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+         }
+      tempo = get_timer0();
+      set_timer0(0);
+      tempo = tempo * 2;
+                 
+      if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS
+         {
+         n_byte = n_byte + 0b00010000;//Set o Bit 4
+         }
+         //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0)
+      }
+      
+   //Bit 3
+   timeOut = 255;
+   while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS)
+      {
+      if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+      timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+      }
+   
+   tempo = get_timer0();//Le o tempo no TMR1
+   set_timer0(0);//Reinicia o TMR1 para proxima leitura
+   tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2
+            
+   if(tempo > 25)//Ele fica em nivel baixo por 50 uS
+      {
+      
+      timeOut = 255;
+      while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1)
+         {
+         if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+         timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+         }
+      tempo = get_timer0();
+      set_timer0(0);
+      tempo = tempo * 2;
+                 
+      if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS
+         {
+         n_byte = n_byte + 0b00001000;//Set o Bit 3
+         }
+         //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0)
+      }
+   
+   //Bit 2
+   timeOut = 255;
+   while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS)
+      {
+      if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+      timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+      }
+   
+   tempo = get_timer0();//Le o tempo no TMR1
+   set_timer0(0);//Reinicia o TMR1 para proxima leitura
+   tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2
+            
+   if(tempo > 25)//Ele fica em nivel baixo por 50 uS
+      {
+      
+      timeOut = 255;
+      while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1)
+         {
+         if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+         timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+         }
+      tempo = get_timer0();
+      set_timer0(0);
+      tempo = tempo * 2;
+                 
+      if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS
+         {
+         n_byte = n_byte + 0b00000100;//Set o Bit 2
+         }
+         //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0)
+      }
+   
+   //Bit 1
+   timeOut = 255;
+   while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS)
+      {
+      if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+      timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+      }
+   
+   tempo = get_timer0();//Le o tempo no TMR1
+   set_timer0(0);//Reinicia o TMR1 para proxima leitura
+   tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2
+            
+   if(tempo > 25)//Ele fica em nivel baixo por 50 uS
+      {
+      
+      timeOut = 255;
+      while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1)
+         {
+         if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+         timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+         }
+      tempo = get_timer0();
+      set_timer0(0);
+      tempo = tempo * 2;
+                 
+      if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS
+         {
+         n_byte = n_byte + 0b00000010;//Set o Bit 1
+         }
+         //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0)
+      }
+   
+   //Bit 0
+   timeOut = 255;
+   while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS)
+      {
+      if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+      timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+      }
+   
+   tempo = get_timer0();//Le o tempo no TMR1
+   set_timer0(0);//Reinicia o TMR1 para proxima leitura
+   tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2
+            
+   if(tempo > 25)//Ele fica em nivel baixo por 50 uS
+      {
+      
+      timeOut = 255;
+      while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1)
+         {
+         if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS)
+         timeOut = timeOut -1;//Subtrai uma unidade no timeOut
+         }
+      tempo = get_timer0();
+      set_timer0(0);
+      tempo = tempo * 2;
+                 
+      if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS
+         {
+         n_byte = n_byte + 0b00000001;//Set o Bit 0
+         }
+         //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0)
+      }
+   
+   return n_byte;//Retorna com o Byte recebido
+   }
+   
+   

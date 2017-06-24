@@ -1,0 +1,1519 @@
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001 ;*******************************************************************************
+                      00002 ;*  Programa: Teste do Sensor de Umidade e Temperatura DHT-11 com LCD 16x2     *
+                      00003 ;*  Desenvolvedor: Misael S. Sales                                             *
+                      00004 ;*  Versão: 1.0                                                                *
+                      00005 ;*  Data: 03/11/2012                                                           *
+                      00006 ;*  PIC: Linha 16F de 40 pinos (Para usar em outros mude o nome das portas )   *
+                      00007 ;*  Display: HD44780                                                           *
+                      00008 ;*  Sensor: DHT-11                                                             *
+                      00009 ;*  Licença: Livre para uso e modificação                                      *
+                      00010 ;*                                                                             *
+                      00011 ;*  MSS Eletrônica - www.msseletronica.com - msseletronica@hotmail.com.br      *
+                      00012 ;*                                                                             *
+                      00013 ;*******************************************************************************
+                      00014 
+                      00015 ;*******************************************************************************
+                      00016 ;*  Ligações do LCD                                                            *
+                      00017 ;*   D7 -> RD7 (PORTD 7)                                                       *
+                      00018 ;*   D6 -> RD6 (PORTD 6)                                                       *
+                      00019 ;*   D5 -> RD5 (PORTD 5)                                                       *
+                      00020 ;*   D4 -> RD4 (PORTD 4)                                                       *
+                      00021 ;*   RS -> RD3 (PORTD 3)                                                       *
+                      00022 ;*   EN -> RD2 (PORTD 2)                                                       *
+                      00023 ;*   R/W -> Deve ser conectado ao GND                                          *
+                      00024 ;*   VCC -> Deve ser conectado ao +5V                                          *
+                      00025 ;*   GND -> Deve ser conectado ao GND                                          *
+                      00026 ;*   VO -> Deve ser conectado ao potenciômetro/trimpot de ajuste de brilho     *
+                      00027 ;*******************************************************************************
+                      00028 
+                      00029 ;/******************************************************************************
+                      00030 ;* Ligações do Sensor DHT-11                                                   *
+                      00031 ;*  Out -> Pino RC0 do PORTC                                                   *
+                      00032 ;*  "+" -> Deve ser conectado ao +5V                                           *
+                      00033 ;*  "-" -> Deve ser conectado ao GND                                           *
+                      00034 ;*******************************************************************************
+                      00035 
+                      00036 
+                      00037 
+                      00038 ;******************************** DEFINIÇÕES INICIAIS **************************************************
+                            *****************
+                      00039 
+                      00040 ;DESENVOLVIDO PARA TRABALHAR COM CRISTAL DE 4MHz
+                      00041 
+                      00042         INCLUDE <P16F877A.INC>  ;INCLUIR UM ARQUIVO QUE NOMEIA TODOS OS INDEREÇOS FISICOS DO PIC
+                      00001         LIST
+                      00002 ; P16F877A.INC  Standard Header File, Version 1.00    Microchip Technology, Inc.
+                      00396         LIST
+                      00043         
+2007   3F31           00044         __CONFIG _CP_OFF & _DEBUG_OFF & _WRT_OFF  & _CPD_OFF & _LVP_OFF & _BODEN_OFF & _PWRTE_ON & _WDT_
+                            OFF & _XT_OSC 
+                      00045 
+                      00046         ERRORLEVEL -302         ;NÃO INTERPRETAR O ERRO DE NUMERO 302
+                      00047 
+                      00048 ;***************************** MACROS E OUTROS *********************************************************
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                            ****************
+                      00049 #DEFINE                 BANCO_0 bcf STATUS,RP0  ;DEFINE COMO BANK0 O BIT RP0, EM '0'DO STATUS
+                      00050 #DEFINE                 BANCO_1 bSf STATUS,RP0  ;DEFINE COMO BANK1 O BIT RP0, EM '0'DO STATUS
+                      00051 
+                      00052 ;***************************** NOMES PARA PORTA E PINOS ************************************************
+                            ****************
+                      00053 
+                      00054 #DEFINE EN              PORTD,2 ;ESTE PINO (RD2) DEVE SER CONECTADO AO ENABLE (EN) DO LCD
+                      00055 #DEFINE RS              PORTD,3 ;ESTE PINO (RD3) DEVE SER CONECTADO AO RS DO LCD
+                      00056 #DEFINE LCD             PORTD   ;OS PINOS RD4 A RD7 DO PORTD DEVE SER CONECTADO AOS D4 A D7 DO LCD
+                      00057 
+                      00058 #DEFINE SENSOR PORTC,0  ;PINO QUE DEVE SER CONECTADO AO PINO OUT DO SENSOR DHT-11
+                      00059 ;VOCÊ DEVE ALIMENTAR O SENSOR, "+" NO VCC E "-" NO GND
+                      00060 
+                      00061 ;**************************** DECLARAÇÃO DE VARIAVEIS **************************************************
+                            ****************
+  00000021            00062 RH_1    EQU     0X21    ;ARMAZENA O VALOR DA UMIDADE RELATIVA
+  00000022            00063 RH_2    EQU             0X22    ;VEM SEMPRE EM ZERO
+  00000023            00064 TEMP_1  EQU             0X23    ;ARMAZENA O VALOR DA TEMPERATURA
+  00000024            00065 TEMP_2  EQU             0X24    ;VEM SEMPRE EM ZERO
+  00000025            00066 CKSUN   EQU             0X25    ;CHECK SUM DA COMUNICAÇÃO (SOMA DOS QUATRO BYTES ANTERIORES)
+                      00067 
+  00000026            00068 BYTE_TEMP       EQU     0X26    ;ARMAZENA O ULTIMO BYTE RECEBIDO TEMPORIAMENTE
+  00000027            00069 TIME_OUT        EQU     0X27    ;VARIÁVEL PARA CONTAR O TEMPO PARA TIME OUT
+  00000028            00070 TEMPO           EQU     0X28    ;ARMAZENA O TEMPO DO PULSO RECEBIDO (PARA LEITURA E INTERPRETAÇÃO DOS BI
+                            TS RECEBIDOS)
+                      00071 
+  00000029            00072 PDel0           EQU     0X29    ;VARIÁVEL USADA NO DELAY
+  0000002A            00073 PDel1           EQU     0X2A    ;VARIÁVEL USADA NO DELAY
+  0000002B            00074 DELAY           EQU     0X2B    ;VARIÁVEL COM O VALOR DE BASE PARA O DELAY (O TEMPO DO DELAY É 10mS X O 
+                            VALOR DE DELAY)
+                      00075 
+  0000002C            00076 FLAG_1          EQU     0X2C    ;ENDEREÇO PARA FLAG
+                      00077 
+                      00078 #DEFINE         ERRO_SENSOR FLAG_1,0    ;FLAG QUE INDICA QUE OCORREU ERRO AO LER O SENSOR
+                      00079 #DEFINE         MSG_ERRO FLAG_1,1               ;FLAG PARA INDICA QUE ESTA MOSTRANDO A MENSAGEM DE ERRO
+                      00080 
+  0000002D            00081 COMANDO_TEMP_1  EQU     0X2D    ;ARMAZENA O COMANDO ENVIADO PARA O LCD DE FORMA TEMPORÁRIA
+  0000002E            00082 COMANDO_TEMP_2  EQU     0X2E    ;ARMAZENA O COMANDO ENVIADO PARA O LCD DE FORMA TEMPORÁRIA
+                      00083 
+  0000002F            00084 DADO_TEMP               EQU     0X2F
+  00000030            00085 AUX_1                   EQU     0X30
+  00000031            00086 AUX_2                   EQU     0X31
+                      00087 
+                      00088 ;**************************** INICIALIZAÇÃO PARA GRAVAÇÃO **********************************************
+                            ****************
+0000                  00089         ORG 0X00        ;ENDEREÇO DO VETOR DE RESET
+0000   2805           00090         GOTO            CONFIG
+                      00091 
+                      00092 ;**************************** TRATAMENTO DE INTERRUPÇÕES ***********************************************
+                            ****************
+0004                  00093         ORG 0X04        ;ENDEREÇO DO VETOR DE INTERRUPÇÃO
+0004   0009           00094         RETFIE          ;CASO OCORRA ALGUMA INTERRUPÇÃO VOLTA SEM TRATA-LA, POIS NÃO VAMOS USAR INTERRUP
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                            ÇÕES NESTE PROGRAMA EXEMPLO
+                      00095 
+                      00096 ;**************************** CONFIGURAÇÕES DE INICIALIZAÇÃO *******************************************
+                            ****************
+0005                  00097 CONFIG
+                      00098 
+0005   1683           00099         BANCO_1         ;VAMOS PARA O BANCO 1
+                      00100 
+0006   3003           00101         MOVLW           B'00000011'     ;SOMENTE OS PINOS RD1 E RD0 ESTÃO LIVRE PARA USO, O RESTANTE EST
+                            A LIGADO AO LCD
+0007   0088           00102         MOVWF           PORTD           ;DEFININDO O PINO RD0 INICIALMENTE COMO ENTRADA E O RESTANTE COM
+                            O SAIDA
+                      00103 
+0008   30FF           00104         MOVLW           B'11111111'
+0009   0087           00105         MOVWF           PORTC           ;SOMENTE O RC0 ESTA SENDO USADO PELO SENSOR, O RESTANTE ESTE LIV
+                            RE PARA USO
+                      00106 
+                      00107 
+000A   3000           00108         MOVLW           B'00000000'             ;PULL UPS DESABILITADOS (7), INT RB0 OFF (6), FONTE DE C
+                            LOCK PARA O TMR0 INTERNA (5), IRRELEVANTE NESTE CASO (4), PRESCALER PARA O TMR0 (3), PRESCALER 1
+000B   0081           00109         MOVWF           OPTION_REG              ;
+                      00110 
+000C   3000           00111         MOVLW           B'00000000'     ;TODAS AS INTERRUPÇÕES DESABILITADAS
+000D   008B           00112         MOVWF           INTCON
+                      00113         
+000E   1283           00114         BANCO_0
+                      00115 
+                      00116 ;**************************** INICIALIZAÇÃO *******************************************************
+000F                  00117 INICIO
+                      00118         
+                      00119         ;INICIALIZANDO AS VARIÁVEIS
+000F   01A1           00120         CLRF    RH_1
+0010   01A2           00121         CLRF    RH_2
+0011   01A3           00122         CLRF    TEMP_1
+0012   01A4           00123         CLRF    TEMP_2
+0013   01A5           00124         CLRF    CKSUN
+0014   01A6           00125         CLRF    BYTE_TEMP
+0015   01A7           00126         CLRF    TIME_OUT
+0016   01A8           00127         CLRF    TEMPO
+                      00128 
+0017   102C           00129         BCF             ERRO_SENSOR
+0018   10AC           00130         BCF             MSG_ERRO
+                      00131 
+0019   21BB           00132         CALL    INICIA_LCD      ;CHAMA A ROTINA QUE INICIALIZA O LCD
+                      00133 
+                      00134 ;*************************** ENVIA UMA MENSAGEM PARA O LCD ***************************************
+001A   3001           00135         MOVLW   .1      
+001B   21AF           00136         CALL    LINHA_1_LCD             ;APONTA PARA O 2º CARACTER (COMEÇA EM ZERO) DA PRIMEIRA LINHA
+                      00137 
+001C   3045           00138         MOVLW   'E'
+001D   218B           00139         CALL    CARACTER_LCD            ;ENVIA O CARACTER
+001E   3058           00140         MOVLW   'X'
+001F   218B           00141         CALL    CARACTER_LCD
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE  4
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0020   3045           00142         MOVLW   'E'
+0021   218B           00143         CALL    CARACTER_LCD
+0022   304D           00144         MOVLW   'M'
+0023   218B           00145         CALL    CARACTER_LCD
+0024   3050           00146         MOVLW   'P'
+0025   218B           00147         CALL    CARACTER_LCD
+0026   304C           00148         MOVLW   'L'
+0027   218B           00149         CALL    CARACTER_LCD
+0028   304F           00150         MOVLW   'O'
+0029   218B           00151         CALL    CARACTER_LCD
+002A   3020           00152         MOVLW   ' '
+002B   218B           00153         CALL    CARACTER_LCD
+002C   3044           00154         MOVLW   'D'
+002D   218B           00155         CALL    CARACTER_LCD
+002E   3048           00156         MOVLW   'H'
+002F   218B           00157         CALL    CARACTER_LCD
+0030   3054           00158         MOVLW   'T'
+0031   218B           00159         CALL    CARACTER_LCD
+0032   3031           00160         MOVLW   '1'
+0033   218B           00161         CALL    CARACTER_LCD
+0034   3031           00162         MOVLW   '1'
+0035   218B           00163         CALL    CARACTER_LCD
+                      00164 
+0036   3001           00165         MOVLW   .1      
+0037   21B2           00166         CALL    LINHA_2_LCD                     ;APONTA PARA O 2º CARACTER (COMEÇA EM ZERO) DA SEGUNDA L
+                            INHA
+                      00167 
+0038   304D           00168         MOVLW   'M'
+0039   218B           00169         CALL    CARACTER_LCD            ;ENVIA O CARACTER
+003A   3053           00170         MOVLW   'S'
+003B   218B           00171         CALL    CARACTER_LCD
+003C   3053           00172         MOVLW   'S'
+003D   218B           00173         CALL    CARACTER_LCD
+003E   3020           00174         MOVLW   ' '
+003F   218B           00175         CALL    CARACTER_LCD
+0040   3045           00176         MOVLW   'E'
+0041   218B           00177         CALL    CARACTER_LCD
+0042   304C           00178         MOVLW   'L'
+0043   218B           00179         CALL    CARACTER_LCD
+0044   3045           00180         MOVLW   'E'
+0045   218B           00181         CALL    CARACTER_LCD
+0046   3054           00182         MOVLW   'T'
+0047   218B           00183         CALL    CARACTER_LCD
+0048   3052           00184         MOVLW   'R'
+0049   218B           00185         CALL    CARACTER_LCD
+004A   304F           00186         MOVLW   'O'
+004B   218B           00187         CALL    CARACTER_LCD
+004C   304E           00188         MOVLW   'N'
+004D   218B           00189         CALL    CARACTER_LCD
+004E   3049           00190         MOVLW   'I'
+004F   218B           00191         CALL    CARACTER_LCD
+0050   3043           00192         MOVLW   'C'
+0051   218B           00193         CALL    CARACTER_LCD
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0052   3041           00194         MOVLW   'A'
+0053   218B           00195         CALL    CARACTER_LCD
+                      00196 
+0054   3064           00197         MOVLW   .100    
+0055   00AB           00198         MOVWF   DELAY           
+0056   21F9           00199         CALL    DELAY_10        ;AGUARDA 1S (A ROTINA DELAY_10 GERA UM DELAY MULTIPLO DE 10mS, O TEMPO D
+                            EVE SER PASSADO EM DELAY)
+                      00200 
+0057   21B8           00201         CALL    LIMPA_LCD       ;LIMPA TODO TEXTO ESCRITO NO LCD
+                      00202 
+0058   206A           00203         CALL    MENSAGEM_TEMP_RH        ;CHAMA A ROTINA QUE MONTA A MENSAGEM QUE FICARÁ MOSTRANDO A TEMP
+                            ERATURA E A UMIDADE RELATIVA
+                      00204 
+                      00205 ;*************************** LOOP PRINCIPAL DO PROGRAMA *******************************************
+0059                  00206 LOOP    
+                      00207         
+0059   300A           00208         MOVLW   .10
+005A   00AB           00209         MOVWF   DELAY
+005B   21F9           00210         CALL    DELAY_10                ;FAZ UMA NOVA LEITURA NO SENSOR A CADA 100ms
+                      00211 
+005C   20B2           00212         CALL    LER_SENSOR              ;ROTINA QUE LE O SENSOR
+                      00213 
+005D   182C           00214         BTFSC   ERRO_SENSOR
+005E   2890           00215         GOTO    MSG_ERRO_SENSOR ;SE AO TENTAR LER O SENSOR ENCONTRAR ALGUM ERRO, EXIBE UMA MENSAGEM INDI
+                            CANDO
+                      00216 
+005F   18AC           00217         BTFSC   MSG_ERRO
+0060   206A           00218         CALL    MENSAGEM_TEMP_RH        ;SE O SENSOR NÃO ESTA MAIS EM ERRO, SE A MENSAGEM DE ERRO ESTIVE
+                            R ATIVA, LIMPA ELA E COLOCA A MENSAGEM PARA EXIBIR OS DADOS
+                      00219         
+0061   3003           00220         MOVLW   .3      
+0062   21AF           00221         CALL    LINHA_1_LCD             ;APONTA PARA O PRIMEIRO CARACTER DA UMIDADE RELATIVA
+0063   0821           00222         MOVF    RH_1,W
+                      00223                         ;RH_2 VEM SEMPRE 0 (ZERO)
+                      00224 
+0064   209F           00225         CALL    EXIBE_DADO              ;CHAMA A ROTINA QUE CONVERTE O DADO E EXIBE NO LCD
+                      00226 
+0065   3005           00227         MOVLW   .5
+0066   21B2           00228         CALL    LINHA_2_LCD             ;APONTA PARA O PRIMEIRO CARACTER DA TEMPERATURA
+0067   0823           00229         MOVF    TEMP_1,W
+                      00230                         ;TEMP_2 VEM SEMPRE 0 (ZERO)
+                      00231 
+0068   209F           00232         CALL    EXIBE_DADO
+                      00233                         
+0069   2859           00234         GOTO LOOP
+                      00235 
+                      00236 ;****************************************** ROTINA PARA EXIBIR A MENSAGEM PARA TEMPERATURA E PARA UMIDAD
+                            E (RH) ***************************************
+006A                  00237 MENSAGEM_TEMP_RH
+                      00238 
+006A   3000           00239         MOVLW   .0      
+006B   21AF           00240         CALL    LINHA_1_LCD     ;APONTA PARA A SEGUNDA LINHA E 2 CARACTER
+                      00241 
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+006C   3052           00242         MOVLW   'R'
+006D   218B           00243         CALL    CARACTER_LCD
+006E   3048           00244         MOVLW   'H'
+006F   218B           00245         CALL    CARACTER_LCD
+0070   303A           00246         MOVLW   ':'
+0071   218B           00247         CALL    CARACTER_LCD
+0072   3030           00248         MOVLW   '0'
+0073   218B           00249         CALL    CARACTER_LCD
+0074   3030           00250         MOVLW   '0'
+0075   218B           00251         CALL    CARACTER_LCD
+                      00252 
+0076   3005           00253         MOVLW   .5      
+0077   21AF           00254         CALL    LINHA_1_LCD     ;APONTA PARA A SEGUNDA LINHA E 2 CARACTER
+                      00255 
+0078   3025           00256         MOVLW   '%'
+0079   218B           00257         CALL    CARACTER_LCD
+                      00258 
+007A   3000           00259         MOVLW   .0      
+007B   21B2           00260         CALL    LINHA_2_LCD     ;APONTA PARA A SEGUNDA LINHA E 2 CARACTER
+                      00261 
+007C   3054           00262         MOVLW   'T'
+007D   218B           00263         CALL    CARACTER_LCD
+007E   3045           00264         MOVLW   'E'
+007F   218B           00265         CALL    CARACTER_LCD
+0080   304D           00266         MOVLW   'M'
+0081   218B           00267         CALL    CARACTER_LCD
+0082   3050           00268         MOVLW   'P'
+0083   218B           00269         CALL    CARACTER_LCD
+0084   303A           00270         MOVLW   ':'
+0085   218B           00271         CALL    CARACTER_LCD
+0086   3030           00272         MOVLW   '0'
+0087   218B           00273         CALL    CARACTER_LCD
+0088   3030           00274         MOVLW   '0'
+0089   218B           00275         CALL    CARACTER_LCD
+                      00276 
+008A   3007           00277         MOVLW   .7      
+008B   21B2           00278         CALL    LINHA_2_LCD     ;APONTA PARA A SEGUNDA LINHA E 2 CARACTER
+                      00279 
+008C   3043           00280         MOVLW   'C'
+008D   218B           00281         CALL    CARACTER_LCD
+                      00282 
+008E   10AC           00283         BCF             MSG_ERRO        ;INDICA QUE A MENSAGEM ATUAL NÃO É A DE ERRO
+                      00284         
+008F   0008           00285         RETURN
+                      00286 
+                      00287 ;*************************** ROTINA PARA EXIBIR UMA MENSAGEM INFORMANDO ERRO AO LER O SENSOR ****
+0090                  00288 MSG_ERRO_SENSOR
+                      00289 
+0090   18AC           00290         BTFSC   MSG_ERRO                ;TESTA SE JÁ ESTA EXIBINDO A MENSAGEM DE ERRO
+0091   2859           00291         GOTO    LOOP                    ;SE ESTIVER, SAI SEM MUDAR A MENSAGEM
+                      00292 
+0092   21B8           00293         CALL    LIMPA_LCD               ;LIMPA O QUE ESTIVER ESCRITO NO LCD
+                      00294         
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE  7
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0093   3000           00295         MOVLW   .0      
+0094   21AF           00296         CALL    LINHA_1_LCD     ;APONTA PARA A SEGUNDA LINHA E 2 CARACTER
+                      00297 
+0095   3045           00298         MOVLW   'E'
+0096   218B           00299         CALL    CARACTER_LCD
+0097   3052           00300         MOVLW   'R'
+0098   218B           00301         CALL    CARACTER_LCD
+0099   3052           00302         MOVLW   'R'
+009A   218B           00303         CALL    CARACTER_LCD
+009B   3030           00304         MOVLW   '0'
+009C   218B           00305         CALL    CARACTER_LCD
+                      00306 
+009D   14AC           00307         BSF             MSG_ERRO                ;INFORMA QUE ESTA EXIBINDO A MENSAGEM DE ERRO
+                      00308 
+009E   2859           00309         GOTO    LOOP                    ;VOLTA PARA O LOOP
+                      00310 
+                      00311 ;*************************** ROTINA PARA EXIBIR O DADO DE FORMA BCD ******************************
+                      00312 ;ESTA ROTINA TRANSFORMA UM NUMERO DE UM BYTE EM PARTES, OU SEJA, O NÚMERO 25, SERÁ 2 E 5 PARA MOSTRAR
+                      00313 ; NO LCD
+                      00314 
+009F                  00315 EXIBE_DADO      
+                      00316 
+009F   20A7           00317         CALL    DIV_POR_10              ;CHAMA A ROTINA QUE DIVIDE O VALOR POR 10 (O VALOR A SER DIVIDID
+                            O VEIO NO 'W')
+00A0   0831           00318         MOVF    AUX_2,W                 ;ENVIA A PARTE INTEIRA (O DIGITO DA DEZENA)
+00A1   3E30           00319         ADDLW   .48                             ;TRANSFORMA O NÚMERO EM CARACTER
+00A2   218B           00320         CALL    CARACTER_LCD    ;EXIBE NO LCD
+                      00321         
+00A3   0830           00322         MOVF    AUX_1,W                 ;EXIBE O RESTO DA DIVISÃO (A UNIDADE)
+00A4   3E30           00323         ADDLW   .48                             ;TRANSFORMA O NÚMERO EM CARACTER
+00A5   218B           00324         CALL    CARACTER_LCD    ;EXIBE NO LCD
+                      00325 
+00A6   0008           00326         RETURN
+                      00327 
+00A7                  00328 DIV_POR_10              
+                      00329 
+00A7   00B0           00330         MOVWF   AUX_1
+00A8   01B1           00331         CLRF    AUX_2
+                      00332 
+00A9                  00333 LOOP_DIV_POR_10
+                      00334 
+00A9   30F6           00335         MOVLW   .246
+00AA   0730           00336         ADDWF   AUX_1,W
+00AB   1803           00337         BTFSC   STATUS,C        ;TESTA SE É MAIOR QUE 10
+00AC   28AE           00338         GOTO    SUB_10
+                      00339 
+00AD   0008           00340         RETURN
+                      00341 
+00AE                  00342 SUB_10
+                      00343 
+00AE   300A           00344         MOVLW   .10
+00AF   02B0           00345         SUBWF   AUX_1,F         ;SUBTRAI 10 
+00B0   0AB1           00346         INCF    AUX_2,F         ;INCREMENTA O VALOR DA AUX 2
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE  8
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00347 
+00B1   28A9           00348         GOTO    LOOP_DIV_POR_10
+                      00349         
+                      00350 
+                      00351 ;*************************** ROTINA PARA LER O SENSOR ********************************************
+                      00352 ;ESTA ROTINA APENAS INICIA O PROCESSO, ELA CHAMARÁ OUTRAS ROTINAS
+                      00353 
+00B2                  00354 LER_SENSOR
+                      00355 
+00B2   102C           00356         BCF             ERRO_SENSOR             ;INICIA LIMPANDO O FLAG QUE INDICA ERRO NA LEITURA DO SE
+                            NSOR
+                      00357 
+00B3   01A1           00358         CLRF    RH_1
+00B4   01A2           00359         CLRF    RH_2    ;RETORNARÁ SEMPRE EM ZERO
+00B5   01A3           00360         CLRF    TEMP_1
+00B6   01A4           00361         CLRF    TEMP_2  ;RETORNARÁ SEMPRE EM ZERO
+00B7   01A5           00362         CLRF    CKSUN   ;TERÁ SEMPRE O RESULTADO DA SOMA ENTRE RH_1 + RH_2 + TEMP_1 + TEMP_2
+                      00363 
+00B8   1683           00364         BANCO_1
+00B9   1007           00365         BCF             TRISC,0         ;COLOCA O PINO QUE ESTA LIGADO AO SENSOR COMO SAIDA (PARA INICIA
+                            R A SOLICITAÇÃO DE DADOS)
+00BA   1283           00366         BANCO_0
+                      00367 
+00BB   1007           00368         BCF             SENSOR          ;COLOCA O PINO EM NÍVEL BAIXO (INICIA O PROCESSO DE SOLICITAÇÃO 
+                            DE DADOS)
+00BC   3002           00369         MOVLW   .2
+00BD   00AB           00370         MOVWF   DELAY           ;GERA UM DELAY DE 20mS
+00BE   21F9           00371         CALL    DELAY_10
+                      00372 
+00BF   1407           00373         BSF             SENSOR          ;COLOCA O PINO CONECTADO AO SENSOR EM NÍVEL ALTO
+                      00374         
+00C0   1683           00375         BANCO_1
+00C1   1407           00376         BSF             TRISC,0         ;COLOCANDO O PINO QUE ESTA LIGADO AO SENSOR COMO ENTRADA (PARA I
+                            NICIAR A LEITURA DE DADOS)
+00C2   1283           00377         BANCO_0
+                      00378 
+00C3   30C8           00379         MOVLW   .200
+00C4   00A7           00380         MOVWF   TIME_OUT        ;TIME_OUT É O TEMPO MÁXIMO PARA FICAR AGUARDANDO A COMUNICAÇÃO COM O SEN
+                            SOR (EM uS). SE O TEMPO ACABAR, ABORTA A LEITURA
+                      00381 
+00C5                  00382 LOOP_AGUARDA_RESP_SEN           ;LOOP PARA AGUARDAR O SENSOR RESPONDER
+                      00383         
+00C5   0BA7           00384         DECFSZ  TIME_OUT,F
+00C6   28C8           00385         GOTO    CONT_LOOP_AGUARDA_RESP_SEN
+00C7   28F7           00386         GOTO    ERRO_LER_SENSOR         ;SE O TEMPO ACABOU, ENTÃO OCORREU UM ERRO AO LER O SENSOR, ENTÃO
+                             INDICA ISTO E SAI DA LEITURA DO SENSOR
+                      00387 
+00C8                  00388 CONT_LOOP_AGUARDA_RESP_SEN
+                      00389         
+00C8   1807           00390         BTFSC   SENSOR
+00C9   28C5           00391         GOTO    LOOP_AGUARDA_RESP_SEN   ;ENQUANTO O PINO ESTIVE EM NIVEL ALTO FICA EM LOOP
+                      00392 
+00CA   0181           00393         CLRF    TMR0            ;REINICIA O TIMER0
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE  9
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00394 
+                      00395 ;TESTANDO OS PRIMEIROS 80uS EM NÍVEL BAIXO
+00CB   30C8           00396         MOVLW   .200
+00CC   00A7           00397         MOVWF   TIME_OUT
+                      00398 
+00CD                  00399 LOOP_AGUARDA_RESP_SEN_2         ;LOOP PARA AGUARDAR A SEGUNDA PARTE DA REPOSTA DO SENSOR (AINDA NÃO SÃO 
+                            OS DADOS, CONSULTE O DATASHEET)
+                      00400 
+00CD   0BA7           00401         DECFSZ  TIME_OUT,F
+00CE   28D0           00402         GOTO    CONT_LOOP_AGUARDA_RESP_SEN_2
+00CF   28F7           00403         GOTO    ERRO_LER_SENSOR
+                      00404 
+00D0                  00405 CONT_LOOP_AGUARDA_RESP_SEN_2
+                      00406 
+00D0   1C07           00407         BTFSS   SENSOR
+00D1   28CD           00408         GOTO    LOOP_AGUARDA_RESP_SEN_2
+                      00409 
+00D2   0801           00410         MOVF    TMR0,W
+00D3   00A8           00411         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+00D4   0181           00412         CLRF    TMR0            ;REINICIA O TIMER0
+                      00413 
+00D5   30E2           00414         MOVLW   .226            
+00D6   0728           00415         ADDWF   TEMPO,W         
+00D7   1C03           00416         BTFSS   STATUS,C                ;TESTA SE O TEMPO É MAIOR OU IGUAL A 40 (LEMBRE-SE O O PRESCALER
+                             ESTA 1:2 -> 20 X 2 = 40uS) (TEMPO INFORMANDO NO DATASHEET É DE 80uS) ANTES DE RECEBER OS DADOS 
+00D8   28F7           00417         GOTO    ERRO_LER_SENSOR
+                      00418 
+                      00419 ;TESTANDO OS PRIMEIROS 80uS EM NÍVEL ALTO
+00D9   30FA           00420         MOVLW   .250
+00DA   00A7           00421         MOVWF   TIME_OUT
+                      00422 
+00DB                  00423 LOOP_AGUARDA_RESP_SEN_3 ;LOOP PARA AGUARDAR A SEGUNDA PARTE DA REPOSTA DO SENSOR (AINDA NÃO SÃO OS DADOS
+                            , CONSULTE O DATASHEET)
+                      00424 
+00DB   0BA7           00425         DECFSZ  TIME_OUT,F
+00DC   28DE           00426         GOTO    CONT_LOOP_AGUARDA_RESP_SEN_3
+00DD   28F7           00427         GOTO    ERRO_LER_SENSOR
+                      00428 
+00DE                  00429 CONT_LOOP_AGUARDA_RESP_SEN_3
+                      00430 
+00DE   1807           00431         BTFSC   SENSOR
+00DF   28DB           00432         GOTO    LOOP_AGUARDA_RESP_SEN_3
+                      00433 
+00E0   0801           00434         MOVF    TMR0,W
+00E1   00A8           00435         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+00E2   0181           00436         CLRF    TMR0            ;REINICIA O TIMER0
+                      00437 
+00E3   30E2           00438         MOVLW   .226            
+00E4   0728           00439         ADDWF   TEMPO,W         
+00E5   1C03           00440         BTFSS   STATUS,C                ;TESTA SE O TEMPO É MAIOR OU IGUAL A 40 (LEMBRE-SE O PRESCALER E
+                            STA 1:2 -> 20 X 2 = 40uS) (TEMPO INFORMANDO NO DATASHEET É DE 80uS) ANTES DE RECEBER OS DADOS FI
+00E6   28F7           00441         GOTO    ERRO_LER_SENSOR
+                      00442 
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 10
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00443 ;SE ATÉ AQUI ESTA TUDO OK, COMEÇA A RECEBER OS BYTES
+                      00444 
+00E7   20F9           00445         CALL    LER_BYTE_SENSOR ;CHAMA A ROTINA QUE LE UM BYTE
+00E8   0826           00446         MOVF    BYTE_TEMP,W             
+00E9   00A1           00447         MOVWF   RH_1                    ;PASSA PARA A PRIMEIRA VARIÁVEL
+                      00448 
+00EA   20F9           00449         CALL    LER_BYTE_SENSOR
+00EB   0826           00450         MOVF    BYTE_TEMP,W
+00EC   00A2           00451         MOVWF   RH_2
+                      00452 
+00ED   20F9           00453         CALL    LER_BYTE_SENSOR
+00EE   0826           00454         MOVF    BYTE_TEMP,W
+00EF   00A3           00455         MOVWF   TEMP_1
+                      00456 
+00F0   20F9           00457         CALL    LER_BYTE_SENSOR
+00F1   0826           00458         MOVF    BYTE_TEMP,W
+00F2   00A4           00459         MOVWF   TEMP_2
+                      00460 
+00F3   20F9           00461         CALL    LER_BYTE_SENSOR
+00F4   0826           00462         MOVF    BYTE_TEMP,W
+00F5   00A5           00463         MOVWF   CKSUN
+                      00464 
+00F6   0008           00465         RETURN                                  ;RETORNA QUE OS DADOS EM SUAS VARIÁVEIS CORRESPONDENTES
+                      00466 
+00F7                  00467 ERRO_LER_SENSOR
+                      00468 
+00F7   142C           00469         BSF             ERRO_SENSOR             ;SE OCORRER UM ERRO NA LEITURA DO SENSOR, INFORMA ATRAVÉ
+                            S DESTE FLAG
+                      00470 
+00F8   0008           00471         RETURN  
+                      00472 
+                      00473 ;*************************************** ROTINA QUE LE 1(UM) BYTE ENVIADO PELO SENSOR ******************
+                            *********
+00F9                  00474 LER_BYTE_SENSOR ;ROTINA PARA LER OS BIT´s E MONTAR UM BYTE
+                      00475 
+00F9   01A6           00476         CLRF    BYTE_TEMP
+                      00477 
+                      00478 ;************ BIT 7 *********************
+                      00479 
+00FA                  00480 LOOP_LER_BIT_1_7                ;O SENSOR ENVIA PRIMEIRO OS BIT´S MAIS SIGNIFICATIVOS, OU SEJA, COMEÇA D
+                            O 7, DEPOIS 6 E ASSIM POR DIANTE
+                      00481 
+00FA   1C07           00482         BTFSS   SENSOR
+00FB   28FA           00483         GOTO    LOOP_LER_BIT_1_7        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00484 
+00FC   0801           00485         MOVF    TMR0,W
+00FD   00A8           00486         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+00FE   0181           00487         CLRF    TMR0            ;REINICIA O TIMER0
+                      00488 
+00FF   30F3           00489         MOVLW   .243            
+0100   0728           00490         ADDWF   TEMPO,W         
+0101   1C03           00491         BTFSS   STATUS,C        ;TESTA SE O TEMPO É MAIOR OU IGUAL A 26 (LEMBRE-SE O O PRESCALER ESTA 1:
+                            2 -> 13 X 2 = 26uS) (TEMPO INFORMANDO NO DATASHEET É DE 50uS) ESTE É O INICIO DO BIT
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 11
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0102   28F7           00492         GOTO    ERRO_LER_SENSOR
+                      00493 
+0103                  00494 LOOP_LER_BIT_2_7
+                      00495 
+0103   1807           00496         BTFSC   SENSOR
+0104   2903           00497         GOTO    LOOP_LER_BIT_2_7        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00498 
+0105   0801           00499         MOVF    TMR0,W
+0106   00A8           00500         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0107   0181           00501         CLRF    TMR0            ;REINICIA O TIMER0
+                      00502 
+0108   30EE           00503         MOVLW   .238            
+0109   0728           00504         ADDWF   TEMPO,W         
+010A   1803           00505         BTFSC   STATUS,C                ;TESTA SE O TEMPO É MAIOR OU IGUAL A 36 (LEMBRE-SE O O PRESCALER
+                             ESTA 1:2 -> 18 X 2 = 36uS) (TEMPO INFORMANDO NO DATASHEET É DE 70uS PARA BIT 1 OU 26-28uS PARA 
+010B   17A6           00506         BSF             BYTE_TEMP,7             ;SE O BIT RECEBIDO FOR 1, COLOCA EM 1 O BIT 7 (COMEÇA RE
+                            CEBER OS BIT´s MAIS SIGNIFICATIVOS)
+                      00507                                                         ;SE O BIT RECEBIDO FOR 0, NÃO PRECISA ALTERAR O 
+                            VALOR DO BIT, POIS INCIALMENTE ELE JÁ É 0 (ZERO)
+                      00508 
+                      00509 ;************ BIT 6 *********************
+                      00510 
+010C                  00511 LOOP_LER_BIT_1_6
+                      00512 
+010C   1C07           00513         BTFSS   SENSOR
+010D   290C           00514         GOTO    LOOP_LER_BIT_1_6        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00515 
+010E   0801           00516         MOVF    TMR0,W
+010F   00A8           00517         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0110   0181           00518         CLRF    TMR0            ;REINICIA O TIMER0
+                      00519 
+0111   30F3           00520         MOVLW   .243            
+0112   0728           00521         ADDWF   TEMPO,W         
+0113   1C03           00522         BTFSS   STATUS,C
+0114   28F7           00523         GOTO    ERRO_LER_SENSOR
+                      00524 
+0115                  00525 LOOP_LER_BIT_2_6
+                      00526 
+0115   1807           00527         BTFSC   SENSOR
+0116   2915           00528         GOTO    LOOP_LER_BIT_2_6        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00529 
+0117   0801           00530         MOVF    TMR0,W
+0118   00A8           00531         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0119   0181           00532         CLRF    TMR0            ;REINICIA O TIMER0
+                      00533 
+011A   30EE           00534         MOVLW   .238            
+011B   0728           00535         ADDWF   TEMPO,W         
+011C   1803           00536         BTFSC   STATUS,C        
+011D   1726           00537         BSF             BYTE_TEMP,6     
+                      00538         
+                      00539 ;************ BIT 5 *********************
+                      00540 
+011E                  00541 LOOP_LER_BIT_1_5
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 12
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00542 
+011E   1C07           00543         BTFSS   SENSOR
+011F   291E           00544         GOTO    LOOP_LER_BIT_1_5        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00545 
+0120   0801           00546         MOVF    TMR0,W
+0121   00A8           00547         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0122   0181           00548         CLRF    TMR0            ;REINICIA O TIMER0
+                      00549 
+0123   30F3           00550         MOVLW   .243            
+0124   0728           00551         ADDWF   TEMPO,W         
+0125   1C03           00552         BTFSS   STATUS,C
+0126   28F7           00553         GOTO    ERRO_LER_SENSOR
+                      00554 
+0127                  00555 LOOP_LER_BIT_2_5
+                      00556 
+0127   1807           00557         BTFSC   SENSOR
+0128   2927           00558         GOTO    LOOP_LER_BIT_2_5        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00559 
+0129   0801           00560         MOVF    TMR0,W
+012A   00A8           00561         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+012B   0181           00562         CLRF    TMR0            ;REINICIA O TIMER0
+                      00563 
+012C   30EE           00564         MOVLW   .238            
+012D   0728           00565         ADDWF   TEMPO,W         
+012E   1803           00566         BTFSC   STATUS,C
+012F   16A6           00567         BSF             BYTE_TEMP,5
+                      00568 
+                      00569 ;************ BIT 4 *********************
+                      00570 
+0130                  00571 LOOP_LER_BIT_1_4
+                      00572 
+0130   1C07           00573         BTFSS   SENSOR
+0131   2930           00574         GOTO    LOOP_LER_BIT_1_4        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00575 
+0132   0801           00576         MOVF    TMR0,W
+0133   00A8           00577         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0134   0181           00578         CLRF    TMR0            ;REINICIA O TIMER0
+                      00579 
+0135   30F3           00580         MOVLW   .243            
+0136   0728           00581         ADDWF   TEMPO,W         
+0137   1C03           00582         BTFSS   STATUS,C        
+0138   28F7           00583         GOTO    ERRO_LER_SENSOR
+                      00584 
+0139                  00585 LOOP_LER_BIT_2_4
+                      00586 
+0139   1807           00587         BTFSC   SENSOR
+013A   2939           00588         GOTO    LOOP_LER_BIT_2_4        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00589 
+013B   0801           00590         MOVF    TMR0,W
+013C   00A8           00591         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+013D   0181           00592         CLRF    TMR0            ;REINICIA O TIMER0
+                      00593 
+013E   30EE           00594         MOVLW   .238            
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 13
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+013F   0728           00595         ADDWF   TEMPO,W         
+0140   1803           00596         BTFSC   STATUS,C
+0141   1626           00597         BSF             BYTE_TEMP,4
+                      00598 
+                      00599 ;************ BIT 3 *********************
+                      00600 
+0142                  00601 LOOP_LER_BIT_1_3
+                      00602 
+0142   1C07           00603         BTFSS   SENSOR
+0143   2942           00604         GOTO    LOOP_LER_BIT_1_3        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00605 
+0144   0801           00606         MOVF    TMR0,W
+0145   00A8           00607         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0146   0181           00608         CLRF    TMR0            ;REINICIA O TIMER0
+                      00609 
+0147   30F3           00610         MOVLW   .243            
+0148   0728           00611         ADDWF   TEMPO,W         
+0149   1C03           00612         BTFSS   STATUS,C
+014A   28F7           00613         GOTO    ERRO_LER_SENSOR
+                      00614 
+014B                  00615 LOOP_LER_BIT_2_3
+                      00616 
+014B   1807           00617         BTFSC   SENSOR
+014C   294B           00618         GOTO    LOOP_LER_BIT_2_3        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00619 
+014D   0801           00620         MOVF    TMR0,W
+014E   00A8           00621         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+014F   0181           00622         CLRF    TMR0            ;REINICIA O TIMER0
+                      00623 
+0150   30EE           00624         MOVLW   .238            
+0151   0728           00625         ADDWF   TEMPO,W         
+0152   1803           00626         BTFSC   STATUS,C
+0153   15A6           00627         BSF             BYTE_TEMP,3
+                      00628 
+                      00629 ;************ BIT 2 *********************
+                      00630 
+0154                  00631 LOOP_LER_BIT_1_2
+                      00632 
+0154   1C07           00633         BTFSS   SENSOR
+0155   2954           00634         GOTO    LOOP_LER_BIT_1_2        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00635 
+0156   0801           00636         MOVF    TMR0,W
+0157   00A8           00637         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0158   0181           00638         CLRF    TMR0            ;REINICIA O TIMER0
+                      00639 
+0159   30F3           00640         MOVLW   .243            
+015A   0728           00641         ADDWF   TEMPO,W         
+015B   1C03           00642         BTFSS   STATUS,C        
+015C   28F7           00643         GOTO    ERRO_LER_SENSOR
+                      00644 
+015D                  00645 LOOP_LER_BIT_2_2
+                      00646 
+015D   1807           00647         BTFSC   SENSOR
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 14
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+015E   295D           00648         GOTO    LOOP_LER_BIT_2_2        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00649 
+015F   0801           00650         MOVF    TMR0,W
+0160   00A8           00651         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0161   0181           00652         CLRF    TMR0            ;REINICIA O TIMER0
+                      00653 
+0162   30EE           00654         MOVLW   .238            
+0163   0728           00655         ADDWF   TEMPO,W         
+0164   1803           00656         BTFSC   STATUS,C        
+0165   1526           00657         BSF             BYTE_TEMP,2     
+                      00658 
+                      00659 ;************ BIT 1 *********************
+                      00660 
+0166                  00661 LOOP_LER_BIT_1_1
+                      00662 
+0166   1C07           00663         BTFSS   SENSOR
+0167   2966           00664         GOTO    LOOP_LER_BIT_1_1        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00665 
+0168   0801           00666         MOVF    TMR0,W
+0169   00A8           00667         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+016A   0181           00668         CLRF    TMR0            ;REINICIA O TIMER0
+                      00669 
+016B   30F3           00670         MOVLW   .243            
+016C   0728           00671         ADDWF   TEMPO,W         
+016D   1C03           00672         BTFSS   STATUS,C                
+016E   28F7           00673         GOTO    ERRO_LER_SENSOR
+                      00674 
+016F                  00675 LOOP_LER_BIT_2_1
+                      00676 
+016F   1807           00677         BTFSC   SENSOR
+0170   296F           00678         GOTO    LOOP_LER_BIT_2_1        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00679 
+0171   0801           00680         MOVF    TMR0,W
+0172   00A8           00681         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0173   0181           00682         CLRF    TMR0            ;REINICIA O TIMER0
+                      00683 
+0174   30EE           00684         MOVLW   .238            
+0175   0728           00685         ADDWF   TEMPO,W         
+0176   1803           00686         BTFSC   STATUS,C        
+0177   14A6           00687         BSF             BYTE_TEMP,1     
+                      00688 
+                      00689 ;************ BIT 0 *********************
+                      00690 
+0178                  00691 LOOP_LER_BIT_1_0
+                      00692 
+0178   1C07           00693         BTFSS   SENSOR
+0179   2978           00694         GOTO    LOOP_LER_BIT_1_0        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00695 
+017A   0801           00696         MOVF    TMR0,W
+017B   00A8           00697         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+017C   0181           00698         CLRF    TMR0            ;REINICIA O TIMER0
+                      00699 
+017D   30F3           00700         MOVLW   .243            
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 15
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+017E   0728           00701         ADDWF   TEMPO,W         
+017F   1C03           00702         BTFSS   STATUS,C        
+0180   28F7           00703         GOTO    ERRO_LER_SENSOR
+                      00704 
+0181                  00705 LOOP_LER_BIT_2_0
+                      00706 
+0181   1807           00707         BTFSC   SENSOR
+0182   2981           00708         GOTO    LOOP_LER_BIT_2_0        ;FICA EM LOOP AGUARDADO SAIR DO NIVEL 0(ZERO)
+                      00709 
+0183   0801           00710         MOVF    TMR0,W
+0184   00A8           00711         MOVWF   TEMPO           ;ARMAZENA O VALOR DO TIMER
+0185   0181           00712         CLRF    TMR0            ;REINICIA O TIMER0
+                      00713 
+0186   30EE           00714         MOVLW   .238            
+0187   0728           00715         ADDWF   TEMPO,W         
+0188   1803           00716         BTFSC   STATUS,C                
+0189   1426           00717         BSF             BYTE_TEMP,0             
+                      00718 
+                      00719 
+018A   0008           00720         RETURN  
+                      00721         
+                      00722 
+                      00723 ;*************************************** ROTINAS RELACIONADAS AO LCD ***********************************
+                            **********
+                      00724 
+018B                  00725 CARACTER_LCD    ;ROTINA PARA ENVIAR UM CARACTER PARA O LCD
+                      00726 ;ANTES DE CHAMAR ESTA ROTINA, DEVE SE PASSAR O COMANDO PARA 'W'
+                      00727 
+018B   1588           00728         BSF             RS      
+018C   1108           00729         BCF             EN
+                      00730 
+018D   00AD           00731         MOVWF   COMANDO_TEMP_1  ;SALVA UMA CÓPIA DO COMANDO
+018E   00AE           00732         MOVWF   COMANDO_TEMP_2  ;SALVA UMA CÓPIA DO COMANDO
+                      00733         
+                      00734         
+018F   1388           00735         BCF             LCD,7   ;LIMPANDO OS BIT´s MAIS SIGNIFICATIVOS DA PORTA LIGADA AO LCD
+0190   1308           00736         BCF             LCD,6
+0191   1288           00737         BCF             LCD,5
+0192   1208           00738         BCF             LCD,4
+                      00739 
+0193   102D           00740         BCF             COMANDO_TEMP_1,0                ;LIMPANDO O BIT´s MENOS SIGNIFICATIVOS DO COMAND
+                            O
+0194   10AD           00741         BCF             COMANDO_TEMP_1,1
+0195   112D           00742         BCF             COMANDO_TEMP_1,2
+0196   11AD           00743         BCF             COMANDO_TEMP_1,3
+                      00744 
+0197   082D           00745         MOVF    COMANDO_TEMP_1,W
+0198   0788           00746         ADDWF   LCD,F                                   ;ENVIA O COMANDO PARA O LCD SEM ALTERAR O ESTADO
+                             DOS OUTROS PINOS DO PORT LIGADO AO LCD         
+                      00747 
+0199   1508           00748         BSF             EN
+019A   3001           00749         MOVLW   .1
+019B   00AB           00750         MOVWF   DELAY
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 16
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+019C   21F9           00751         CALL    DELAY_10        ;PODE SER CRIANDO UM DELAY MENOR (2ms) PARA QUE ISTO FIQUE MAIS RÁPIDO
+                      00752 
+019D   1108           00753         BCF             EN
+                      00754 
+019E   1388           00755         BCF             LCD,7   ;LIMPANDO OS BIT´s MAIS SIGNIFICATIVOS DA PORTA LIGADA AO LCD
+019F   1308           00756         BCF             LCD,6
+01A0   1288           00757         BCF             LCD,5
+01A1   1208           00758         BCF             LCD,4
+                      00759 
+01A2   0EAE           00760         SWAPF   COMANDO_TEMP_2,F
+                      00761 
+01A3   102E           00762         BCF             COMANDO_TEMP_2,0                ;LIMPANDO O BIT´s MENOS SIGNIFICATIVOS DO COMAND
+                            O
+01A4   10AE           00763         BCF             COMANDO_TEMP_2,1
+01A5   112E           00764         BCF             COMANDO_TEMP_2,2
+01A6   11AE           00765         BCF             COMANDO_TEMP_2,3
+                      00766 
+01A7   082E           00767         MOVF    COMANDO_TEMP_2,W
+01A8   0788           00768         ADDWF   LCD,F                                   ;ENVIA O COMANDO PARA O LCD SEM ALTERAR O ESTADO
+                             DOS OUTROS PINOS DO PORT LIGADO AO LCD         
+                      00769 
+01A9   1508           00770         BSF             EN
+01AA   3001           00771         MOVLW   .1
+01AB   00AB           00772         MOVWF   DELAY
+01AC   21F9           00773         CALL    DELAY_10        ;PODE SER CRIANDO UM DELAY MENOR (2ms) PARA QUE ISTO FIQUE MAIS RÁPIDO
+                      00774 
+01AD   1108           00775         BCF             EN
+                      00776 
+01AE   0008           00777         RETURN
+                      00778 
+                      00779 ;**********************
+01AF                  00780 LINHA_1_LCD     ;ROTINA QUE APONTA PARA A PRIMEIRA LINHA DO LCD, A POSIÇÃO DO CARACTER DEVE SER PASSADO 
+                            NO 'W' RESPEITANDO O LIMITE DE 16 (0 a 15)
+                      00781 
+01AF   3E80           00782         ADDLW   B'10000000'
+01B0   21C7           00783         CALL    COMANDO_LCD     ;ENVIA O COMANDO COM A POSIÇÃO PARA O LCD
+                      00784         
+01B1   0008           00785         RETURN  
+                      00786 
+                      00787 ;**********************
+01B2                  00788 LINHA_2_LCD     ;ROTINA QUE APONTA PARA A SEGUNDA LINHA DO LCD, A POSIÇÃO DO CARACTER DEVE SER PASSADO N
+                            O 'W' RESPEITANDO O LIMITE DE 16 (0 a 15)
+                      00789 
+01B2   3EC0           00790         ADDLW   B'11000000'
+01B3   21C7           00791         CALL    COMANDO_LCD     ;ENVIA O COMANDO COM A POSIÇÃO PARA O LCD
+                      00792 
+01B4   0008           00793         RETURN
+                      00794 
+                      00795 ;*********************
+01B5                  00796 INICIO_LCD      ;ROTINA QUE APONTA PARA O INICIO DO LCD
+                      00797 
+01B5   3002           00798         MOVLW   B'00000010'     ;Cursor no inicio(1)
+01B6   21C7           00799         CALL    COMANDO_LCD
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 17
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00800 
+01B7   0008           00801         RETURN
+                      00802 
+                      00803 ;*********************
+01B8                  00804 LIMPA_LCD       ;ROTINA QUE LIMPA OS DADOS ESCRITOS NO LCD
+                      00805 
+01B8   3001           00806         MOVLW   B'00000001'     ;limpa display (0)
+01B9   21C7           00807         CALL    COMANDO_LCD
+                      00808 
+01BA   0008           00809         RETURN
+                      00810 
+                      00811 ;*********************
+01BB                  00812 INICIA_LCD      ;ROTINA PARA CHAMAR AS ROTINAS NECESSÁRIAS PARA INICIALIZAR O LCD
+                      00813 
+01BB   21EB           00814         CALL    LCD_4_BIT       ;ROTINA QUE INICIALIZA O LCD PARA TRABALHAR A 4 BIT´s DE DADOS
+                      00815 
+01BC   3028           00816         MOVLW   B'00101000'     ;LCD 4 bits(4), 2 linhas(3), caracter 5*7(2)
+01BD   21C7           00817         CALL    COMANDO_LCD     
+                      00818 
+01BE   300C           00819         MOVLW   B'00001100'     ;Display ligado(2), cursor desligado(1), sem cursor(0)
+01BF   21C7           00820         CALL    COMANDO_LCD
+                      00821 
+01C0   3014           00822         MOVLW   B'00010100'     ;Cursor movimenta(3), Cursor movimenta para a direita a cada caracter(2)
+                             - irrelevante, pois o cursor esta desligado
+01C1   21C7           00823         CALL    COMANDO_LCD
+                      00824 
+01C2   3002           00825         MOVLW   B'00000010'     ;Cursor no inicio(1)
+01C3   21C7           00826         CALL    COMANDO_LCD
+                      00827 
+01C4   3001           00828         MOVLW   B'00000001'     ;Limpa o LCD
+01C5   21C7           00829         CALL    COMANDO_LCD
+                      00830 
+01C6   0008           00831         RETURN
+                      00832 
+                      00833 ;******************
+01C7                  00834 COMANDO_LCD     ;ROTINA PARA ENVIAR UM COMANDO ESPECÍFICO PARA O LCD
+                      00835 ;ANTES DE CHAMAR ESTA ROTINA, DEVE SE PASSAR O COMANDO PARA 'W'
+                      00836 
+01C7   1188           00837         BCF             RS
+01C8   1108           00838         BCF             EN
+                      00839 
+01C9   00AD           00840         MOVWF   COMANDO_TEMP_1  ;SALVA UMA CÓPIA DO COMANDO
+01CA   00AE           00841         MOVWF   COMANDO_TEMP_2  ;SALVA UMA CÓPIA DO COMANDO
+                      00842         
+                      00843         
+01CB   1388           00844         BCF             LCD,7   ;LIMPANDO OS BIT´s MAIS SIGNIFICATIVOS DA PORTA LIGADA AO LCD
+01CC   1308           00845         BCF             LCD,6
+01CD   1288           00846         BCF             LCD,5
+01CE   1208           00847         BCF             LCD,4
+                      00848 
+01CF   102D           00849         BCF             COMANDO_TEMP_1,0                ;LIMPANDO O BIT´s MENOS SIGNIFICATIVOS DO COMAND
+                            O
+01D0   10AD           00850         BCF             COMANDO_TEMP_1,1
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 18
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+01D1   112D           00851         BCF             COMANDO_TEMP_1,2
+01D2   11AD           00852         BCF             COMANDO_TEMP_1,3
+                      00853 
+01D3   082D           00854         MOVF    COMANDO_TEMP_1,W
+01D4   0788           00855         ADDWF   LCD,F                                   ;ENVIA O COMANDO PARA O LCD SEM ALTERAR O ESTADO
+                             DOS OUTROS PINOS DO PORT LIGADO AO LCD         
+                      00856 
+01D5   1508           00857         BSF             EN
+01D6   3001           00858         MOVLW   .1
+01D7   00AB           00859         MOVWF   DELAY
+01D8   21F9           00860         CALL    DELAY_10        ;PODE SER CRIANDO UM DELAY MENOR (2ms) PARA QUE ISTO FIQUE MAIS RÁPIDO
+                      00861 
+01D9   1108           00862         BCF             EN
+                      00863 
+01DA   1388           00864         BCF             LCD,7   ;LIMPANDO OS BIT´s MAIS SIGNIFICATIVOS DA PORTA LIGADA AO LCD
+01DB   1308           00865         BCF             LCD,6
+01DC   1288           00866         BCF             LCD,5
+01DD   1208           00867         BCF             LCD,4
+                      00868 
+01DE   0EAE           00869         SWAPF   COMANDO_TEMP_2,F
+                      00870 
+01DF   102E           00871         BCF             COMANDO_TEMP_2,0                ;LIMPANDO O BIT´s MENOS SIGNIFICATIVOS DO COMAND
+                            O
+01E0   10AE           00872         BCF             COMANDO_TEMP_2,1
+01E1   112E           00873         BCF             COMANDO_TEMP_2,2
+01E2   11AE           00874         BCF             COMANDO_TEMP_2,3
+                      00875 
+01E3   082E           00876         MOVF    COMANDO_TEMP_2,W
+01E4   0788           00877         ADDWF   LCD,F                                   ;ENVIA O COMANDO PARA O LCD SEM ALTERAR O ESTADO
+                             DOS OUTROS PINOS DO PORT LIGADO AO LCD         
+                      00878 
+01E5   1508           00879         BSF             EN
+01E6   3001           00880         MOVLW   .1
+01E7   00AB           00881         MOVWF   DELAY
+01E8   21F9           00882         CALL    DELAY_10        ;PODE SER CRIANDO UM DELAY MENOR (2ms) PARA QUE ISTO FIQUE MAIS RÁPIDO
+                      00883 
+01E9   1108           00884         BCF             EN
+                      00885 
+01EA   0008           00886         RETURN  
+                      00887         
+                      00888 ;********************************
+01EB                  00889 LCD_4_BIT       ;ROTINA PARA INICIALIZAR O LCD PARA TRABALHAR A 4 BIT´s DE DADOS (PARA ENTENDER MELHOR, 
+                            CONSULTE O COMANDO 0B00100000 NO DATASHEET (RS = 0))
+                      00890 
+01EB   1188           00891         BCF             RS
+01EC   1108           00892         BCF             EN
+                      00893 
+01ED   1388           00894         BCF             LCD,7   ;LIMPANDO OS BIT´s MAIS SIGNIFICATIVOS DA PORTA LIGADA AO LCD
+01EE   1308           00895         BCF             LCD,6
+01EF   1288           00896         BCF             LCD,5
+01F0   1208           00897         BCF             LCD,4
+                      00898 
+01F1   3020           00899         MOVLW   B'00100000'
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 19
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+01F2   0788           00900         ADDWF   LCD,F           ;ENVIA O COMANDO PARA O LCD SEM ALTERAR O ESTADO DOS OUTROS PINOS DO POR
+                            T LIGADO AO LCD
+                      00901 
+01F3   1508           00902         BSF             EN
+01F4   3001           00903         MOVLW   .1
+01F5   00AB           00904         MOVWF   DELAY
+01F6   21F9           00905         CALL    DELAY_10        ;PODE SER CRIANDO UM DELAY MENOR (2ms) PARA QUE ISTO FIQUE MAIS RÁPIDO
+                      00906 
+01F7   1108           00907         BCF             EN
+                      00908 
+01F8   0008           00909         RETURN
+                      00910 
+                      00911 
+                      00912 ;*************************************** ROTINAS DE TEMPO **********************************************
+                            **********
+                      00913 
+                      00914 ;ESTA ROTINA CRIA UM DELAY MULTIPLO DE 10mS
+                      00915 ;       -> A BASE DE TEMPO DEVE SER PASSADO PARA A VARIAVEL DELAY ANTES DE CHAMAR ESTA ROTINA
+                      00916 ;       -> O VALOR MÁXIMO PARA A VARIÁVEL DELAY É 255, QUE DA UM TOTAL DE 2,55s
+                      00917 
+01F9                  00918 DELAY_10                ;A BASE DE TEMPO DESTA ROTINA É DE 10ms
+                      00919 
+01F9   3008           00920         MOVLW           .8        ; 1 set number of repetitions (B)
+01FA   00A9           00921     MOVWF           PDel0     ; 1 |
+                      00922 
+01FB                  00923 DELAY_10_1  
+                      00924         
+01FB   30F9           00925         MOVLW           .249      ; 1 set number of repetitions (A)
+01FC   00AA           00926     MOVWF               PDel1     ; 1 |
+                      00927 
+01FD                  00928 DELAY_10_2  
+                      00929 
+01FD   0064           00930         CLRWDT              ; 1 clear watchdog
+01FE   0064           00931     CLRWDT              ; 1 cycle delay
+01FF   0BAA           00932     DECFSZ              PDel1, 1  ; 1 + (1) is the time over? (A)
+0200   29FD           00933     GOTO        DELAY_10_2    ; 2 no, loop
+0201   0BA9           00934     DECFSZ              PDel0,  1 ; 1 + (1) is the time over? (B)
+0202   29FB           00935     GOTO            DELAY_10_1    ; 2 no, loop
+                      00936 
+0203                  00937 DELAY_10_L1
+                      00938 
+0203   2A04           00939         GOTO            DELAY_10_L2         ; 2 cycles delay
+                      00940 
+0204                  00941 DELAY_10_L2
+                      00942         
+0204   0064           00943         CLRWDT              ; 1 cycle delay
+                      00944 
+0205   0BAB           00945         DECFSZ          DELAY,F
+0206   29F9           00946         GOTO            DELAY_10                ;EXECUTA O NUMERO DE VEZES DEFINIDO NA VARIAVEL DALAY
+0207   0008           00947         RETURN
+                      00948 
+                      00949         END
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 20
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+ACKDT                             00000005
+ACKEN                             00000004
+ACKSTAT                           00000006
+ADCON0                            0000001F
+ADCON1                            0000009F
+ADCS0                             00000006
+ADCS1                             00000007
+ADDEN                             00000003
+ADFM                              00000007
+ADIE                              00000006
+ADIF                              00000006
+ADON                              00000000
+ADRESH                            0000001E
+ADRESL                            0000009E
+AUX_1                             00000030
+AUX_2                             00000031
+BANCO_0                           bcf STATUS,RP0
+BANCO_1                           bSf STATUS,RP0
+BCLIE                             00000003
+BCLIF                             00000003
+BF                                00000000
+BRGH                              00000002
+BYTE_TEMP                         00000026
+C                                 00000000
+C1INV                             00000004
+C1OUT                             00000006
+C2INV                             00000005
+C2OUT                             00000007
+CARACTER_LCD                      0000018B
+CCP1CON                           00000017
+CCP1IE                            00000002
+CCP1IF                            00000002
+CCP1M0                            00000000
+CCP1M1                            00000001
+CCP1M2                            00000002
+CCP1M3                            00000003
+CCP1X                             00000005
+CCP1Y                             00000004
+CCP2CON                           0000001D
+CCP2IE                            00000000
+CCP2IF                            00000000
+CCP2M0                            00000000
+CCP2M1                            00000001
+CCP2M2                            00000002
+CCP2M3                            00000003
+CCP2X                             00000005
+CCP2Y                             00000004
+CCPR1H                            00000016
+CCPR1L                            00000015
+CCPR2H                            0000001C
+CCPR2L                            0000001B
+CHS0                              00000003
+CHS1                              00000004
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 21
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+CHS2                              00000005
+CIS                               00000003
+CKE                               00000006
+CKP                               00000004
+CKSUN                             00000025
+CM0                               00000000
+CM1                               00000001
+CM2                               00000002
+CMCON                             0000009C
+CMIE                              00000006
+CMIF                              00000006
+COMANDO_LCD                       000001C7
+COMANDO_TEMP_1                    0000002D
+COMANDO_TEMP_2                    0000002E
+CONFIG                            00000005
+CONT_LOOP_AGUARDA_RESP_SEN        000000C8
+CONT_LOOP_AGUARDA_RESP_SEN_2      000000D0
+CONT_LOOP_AGUARDA_RESP_SEN_3      000000DE
+CREN                              00000004
+CSRC                              00000007
+CVR0                              00000000
+CVR1                              00000001
+CVR2                              00000002
+CVR3                              00000003
+CVRCON                            0000009D
+CVREN                             00000007
+CVROE                             00000006
+CVRR                              00000005
+D                                 00000005
+DADO_TEMP                         0000002F
+DATA_ADDRESS                      00000005
+DC                                00000001
+DELAY                             0000002B
+DELAY_10                          000001F9
+DELAY_10_1                        000001FB
+DELAY_10_2                        000001FD
+DELAY_10_L1                       00000203
+DELAY_10_L2                       00000204
+DIV_POR_10                        000000A7
+D_A                               00000005
+EEADR                             0000010D
+EEADRH                            0000010F
+EECON1                            0000018C
+EECON2                            0000018D
+EEDATA                            0000010C
+EEDATH                            0000010E
+EEIE                              00000004
+EEIF                              00000004
+EEPGD                             00000007
+EN                                PORTD,2
+ERRO_LER_SENSOR                   000000F7
+ERRO_SENSOR                       FLAG_1,0
+EXIBE_DADO                        0000009F
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 22
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+F                                 00000001
+FERR                              00000002
+FLAG_1                            0000002C
+FSR                               00000004
+GCEN                              00000007
+GIE                               00000007
+GO                                00000002
+GO_DONE                           00000002
+I2C_DATA                          00000005
+I2C_READ                          00000002
+I2C_START                         00000003
+I2C_STOP                          00000004
+IBF                               00000007
+IBOV                              00000005
+INDF                              00000000
+INICIA_LCD                        000001BB
+INICIO                            0000000F
+INICIO_LCD                        000001B5
+INTCON                            0000000B
+INTE                              00000004
+INTEDG                            00000006
+INTF                              00000001
+IRP                               00000007
+LCD                               PORTD
+LCD_4_BIT                         000001EB
+LER_BYTE_SENSOR                   000000F9
+LER_SENSOR                        000000B2
+LIMPA_LCD                         000001B8
+LINHA_1_LCD                       000001AF
+LINHA_2_LCD                       000001B2
+LOOP                              00000059
+LOOP_AGUARDA_RESP_SEN             000000C5
+LOOP_AGUARDA_RESP_SEN_2           000000CD
+LOOP_AGUARDA_RESP_SEN_3           000000DB
+LOOP_DIV_POR_10                   000000A9
+LOOP_LER_BIT_1_0                  00000178
+LOOP_LER_BIT_1_1                  00000166
+LOOP_LER_BIT_1_2                  00000154
+LOOP_LER_BIT_1_3                  00000142
+LOOP_LER_BIT_1_4                  00000130
+LOOP_LER_BIT_1_5                  0000011E
+LOOP_LER_BIT_1_6                  0000010C
+LOOP_LER_BIT_1_7                  000000FA
+LOOP_LER_BIT_2_0                  00000181
+LOOP_LER_BIT_2_1                  0000016F
+LOOP_LER_BIT_2_2                  0000015D
+LOOP_LER_BIT_2_3                  0000014B
+LOOP_LER_BIT_2_4                  00000139
+LOOP_LER_BIT_2_5                  00000127
+LOOP_LER_BIT_2_6                  00000115
+LOOP_LER_BIT_2_7                  00000103
+MENSAGEM_TEMP_RH                  0000006A
+MSG_ERRO                          FLAG_1,1
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 23
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+MSG_ERRO_SENSOR                   00000090
+NOT_A                             00000005
+NOT_ADDRESS                       00000005
+NOT_BO                            00000000
+NOT_BOR                           00000000
+NOT_DONE                          00000002
+NOT_PD                            00000003
+NOT_POR                           00000001
+NOT_RBPU                          00000007
+NOT_RC8                           00000006
+NOT_T1SYNC                        00000002
+NOT_TO                            00000004
+NOT_TX8                           00000006
+NOT_W                             00000002
+NOT_WRITE                         00000002
+OBF                               00000006
+OERR                              00000001
+OPTION_REG                        00000081
+P                                 00000004
+PCFG0                             00000000
+PCFG1                             00000001
+PCFG2                             00000002
+PCFG3                             00000003
+PCL                               00000002
+PCLATH                            0000000A
+PCON                              0000008E
+PDel0                             00000029
+PDel1                             0000002A
+PEIE                              00000006
+PEN                               00000002
+PIE1                              0000008C
+PIE2                              0000008D
+PIR1                              0000000C
+PIR2                              0000000D
+PORTA                             00000005
+PORTB                             00000006
+PORTC                             00000007
+PORTD                             00000008
+PORTE                             00000009
+PR2                               00000092
+PS0                               00000000
+PS1                               00000001
+PS2                               00000002
+PSA                               00000003
+PSPIE                             00000007
+PSPIF                             00000007
+PSPMODE                           00000004
+R                                 00000002
+RBIE                              00000003
+RBIF                              00000000
+RC8_9                             00000006
+RC9                               00000006
+RCD8                              00000000
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 24
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+RCEN                              00000003
+RCIE                              00000005
+RCIF                              00000005
+RCREG                             0000001A
+RCSTA                             00000018
+RD                                00000000
+READ_WRITE                        00000002
+RH_1                              00000021
+RH_2                              00000022
+RP0                               00000005
+RP1                               00000006
+RS                                PORTD,3
+RSEN                              00000001
+RX9                               00000006
+RX9D                              00000000
+R_W                               00000002
+S                                 00000003
+SEN                               00000000
+SENSOR                            PORTC,0
+SMP                               00000007
+SPBRG                             00000099
+SPEN                              00000007
+SREN                              00000005
+SSPADD                            00000093
+SSPBUF                            00000013
+SSPCON                            00000014
+SSPCON2                           00000091
+SSPEN                             00000005
+SSPIE                             00000003
+SSPIF                             00000003
+SSPM0                             00000000
+SSPM1                             00000001
+SSPM2                             00000002
+SSPM3                             00000003
+SSPOV                             00000006
+SSPSTAT                           00000094
+STATUS                            00000003
+SUB_10                            000000AE
+SYNC                              00000004
+T0CS                              00000005
+T0IE                              00000005
+T0IF                              00000002
+T0SE                              00000004
+T1CKPS0                           00000004
+T1CKPS1                           00000005
+T1CON                             00000010
+T1INSYNC                          00000002
+T1OSCEN                           00000003
+T1SYNC                            00000002
+T2CKPS0                           00000000
+T2CKPS1                           00000001
+T2CON                             00000012
+TEMPO                             00000028
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 25
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TEMP_1                            00000023
+TEMP_2                            00000024
+TIME_OUT                          00000027
+TMR0                              00000001
+TMR1CS                            00000001
+TMR1H                             0000000F
+TMR1IE                            00000000
+TMR1IF                            00000000
+TMR1L                             0000000E
+TMR1ON                            00000000
+TMR2                              00000011
+TMR2IE                            00000001
+TMR2IF                            00000001
+TMR2ON                            00000002
+TOUTPS0                           00000003
+TOUTPS1                           00000004
+TOUTPS2                           00000005
+TOUTPS3                           00000006
+TRISA                             00000085
+TRISB                             00000086
+TRISC                             00000087
+TRISD                             00000088
+TRISE                             00000089
+TRISE0                            00000000
+TRISE1                            00000001
+TRISE2                            00000002
+TRMT                              00000001
+TX8_9                             00000006
+TX9                               00000006
+TX9D                              00000000
+TXD8                              00000000
+TXEN                              00000005
+TXIE                              00000004
+TXIF                              00000004
+TXREG                             00000019
+TXSTA                             00000098
+UA                                00000001
+W                                 00000000
+WCOL                              00000007
+WR                                00000001
+WREN                              00000002
+WRERR                             00000003
+Z                                 00000002
+_BODEN_OFF                        00003FBF
+_BODEN_ON                         00003FFF
+_CPD_OFF                          00003FFF
+_CPD_ON                           00003EFF
+_CP_ALL                           00001FFF
+_CP_OFF                           00003FFF
+_DEBUG_OFF                        00003FFF
+_DEBUG_ON                         000037FF
+_HS_OSC                           00003FFE
+_LP_OSC                           00003FFC
+MPASM 03.20.07 Released                             DTH11.ASM   11-19-2012  1:12:27         PAGE 26
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_LVP_OFF                          00003F7F
+_LVP_ON                           00003FFF
+_PWRTE_OFF                        00003FFF
+_PWRTE_ON                         00003FF7
+_RC_OSC                           00003FFF
+_WDT_OFF                          00003FFB
+_WDT_ON                           00003FFF
+_WRT_1FOURTH                      00003BFF
+_WRT_256                          00003DFF
+_WRT_HALF                         000039FF
+_WRT_OFF                          00003FFF
+_XT_OSC                           00003FFD
+__16F877A                         00000001
+
+
+MEMORY USAGE MAP ('X' = Used,  '-' = Unused)
+
+0000 : X---XXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0040 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0080 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+00C0 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0100 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0140 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0180 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+01C0 : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0200 : XXXXXXXX-------- ---------------- ---------------- ----------------
+2000 : -------X-------- ---------------- ---------------- ----------------
+
+All other memory blocks unused.
+
+Program Memory Words Used:   517
+Program Memory Words Free:  7675
+
+
+Errors   :     0
+Warnings :     0 reported,     0 suppressed
+Messages :     0 reported,     3 suppressed
+
+

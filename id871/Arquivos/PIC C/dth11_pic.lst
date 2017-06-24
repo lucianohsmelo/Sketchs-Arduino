@@ -1,0 +1,1770 @@
+CCS PCM C Compiler, Version 4.074, 38112               19-nov-12 00:39
+
+               Filename: D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\PIC C\dth11_pic.lst
+
+               ROM used: 1010 words (12%)
+                         Largest free fragment is 2048
+               RAM used: 18 (5%) at main() level
+                         21 (6%) worst case
+               Stack:    3 locations
+
+*
+0000:  MOVLW  00
+0001:  MOVWF  0A
+0002:  GOTO   2B6
+0003:  NOP
+.................... /****************************************************************************** 
+.................... *  Programa: Teste do Sensor de Umidade e Temperatura DHT-11 com LCD 16x2     * 
+.................... *  Desenvolvedor: Misael S. Sales                                             * 
+.................... *  Versão: 1.0                                                                * 
+.................... *  Data: 03/11/2012                                                           * 
+.................... *  PIC: Linha 16F de 40 pinos (Para usar em outros mude o nome das portas )   * 
+.................... *  Display: HD44780                                                           * 
+.................... *  Sensor: DHT-11                                                             * 
+.................... *  Licença: Livre para uso e modificação                                      * 
+.................... *                                                                             * 
+.................... *  MSS Eletrônica - www.msseletronica.com - msseletronica@hotmail.com.br      * 
+.................... *                                                                             * 
+.................... *******************************************************************************/ 
+....................  
+.................... #include <16F877A.h>  
+.................... //////// Standard Header file for the PIC16F877A device //////////////// 
+.................... #device PIC16F877A 
+.................... #list 
+....................  
+.................... #device *=16 
+.................... #device adc=8 
+....................  
+.................... #FUSES NOWDT                    //No Watch Dog Timer 
+.................... #FUSES HS                       //High speed Osc (> 4mhz for PCM/PCH) (>10mhz for PCD) 
+.................... #FUSES NOPUT                    //No Power Up Timer 
+.................... #FUSES NOPROTECT                //Code not protected from reading 
+.................... #FUSES NODEBUG                  //No Debug mode for ICD 
+.................... #FUSES NOBROWNOUT               //No brownout reset 
+.................... #FUSES NOLVP                    //No low voltage prgming, B3(PIC16) or B5(PIC18) used for I/O 
+.................... #FUSES NOCPD                    //No EE protection 
+.................... #FUSES NOWRT                    //Program memory not write protected 
+....................  
+.................... #use delay(clock=4000000) //Programa feito para trabalhar com cristal de 4Mhz 
+*
+0004:  MOVLW  2E
+0005:  MOVWF  04
+0006:  BCF    03.7
+0007:  MOVF   00,W
+0008:  BTFSC  03.2
+0009:  GOTO   018
+000A:  MOVLW  01
+000B:  MOVWF  78
+000C:  CLRF   77
+000D:  DECFSZ 77,F
+000E:  GOTO   00D
+000F:  DECFSZ 78,F
+0010:  GOTO   00C
+0011:  MOVLW  4A
+0012:  MOVWF  77
+0013:  DECFSZ 77,F
+0014:  GOTO   013
+0015:  GOTO   016
+0016:  DECFSZ 00,F
+0017:  GOTO   00A
+0018:  RETLW  00
+....................  
+.................... #ZERO_RAM 
+....................    
+.................... #include <LCD_MSS.h>//Adiciona a nosso biblioteca para acionamento do diplay de LCD 
+.................... /****************************************************************************** 
+.................... *  Biblioteca para acionamento de displays de LCD 16x2 a 8 bits               * 
+.................... *  Desenvolvedor: Misael S. Sales                                             * 
+.................... *  Versão: 1.0                                                                * 
+.................... *  Data: 27/10/2012                                                           * 
+.................... *  PIC: Linha 16F de 40 pinos (Para usar em outros mude o nome das portas )   * 
+.................... *  Displays: HD44780                                                          * 
+.................... *  Licença: Livre para uso e modificação                                      * 
+.................... *                                                                             * 
+.................... *  MSS Eletrônica - www.msseletronica.com - msseletronica@hotmail.com.br      * 
+.................... *                                                                             * 
+.................... *******************************************************************************/ 
+....................  
+.................... /****************************************************************************** 
+.................... *  Instruções:                                                                * 
+.................... *                                                                             * 
+.................... *  Coloque o arquivo LCD_MSS.h na mesma pasta do seu projeto                  * 
+.................... *  Inclua esta biblioteca em seu código usando: #include <LCD_MSS.h>          * 
+.................... *  Defina todos os pinos do PORTD como saida                                  * 
+.................... *  Defina os pinos RC0 e RC1 como saida                                       * 
+.................... *                                                                             * 
+.................... *  Funções:                                                                   * 
+.................... *  -> configura_lcd();//configura de forma básica o LCD                       * 
+.................... *  -> caracter_lcd(caracter);//envia um caracter                              * 
+.................... *  -> comando_lcd();//passa um comando para configurar o LCD (vide datasheet) * 
+.................... *  -> inicio_lcd();//coloca o cursor no inicio, não limpa o LCD               * 
+.................... *  -> limpa_lcd();//limpa todo conteudo do LCD                                * 
+.................... *  -> linha_1_lcd(posicao);//coloca o cursor em uma posição na linha 1 max 16 * 
+.................... *  -> linha_2_lcd(posicao);//coloca o cursor em uma posição na linha 2 max 16 * 
+.................... *                                                                             * 
+.................... *  Ligações do LCD                                                            * 
+.................... *   D7 -> RD7 (PORTD 7)                                                       * 
+.................... *   D6 -> RD6 (PORTD 6)                                                       * 
+.................... *   D5 -> RD5 (PORTD 5)                                                       * 
+.................... *   D4 -> RD4 (PORTD 4)                                                       * 
+.................... *   RS -> RD3 (PORTD 3)                                                       * 
+.................... *   EN -> RD2 (PORTD 2)                                                       * 
+.................... *   R/W -> Deve ser conectado ao GND                                          * 
+.................... *   VCC -> Deve ser conectado ao +5V                                          * 
+.................... *   GND -> Deve ser conectado ao GND                                          * 
+.................... *   VO -> Deve ser conectado ao potenciômetro/trimpot de ajuste de brilho     * 
+.................... *******************************************************************************/ 
+....................  
+.................... #byte PORTD = 0x08//endereço fisico do PORTD 
+....................  
+.................... #byte LCD = PORTD //Os D4 ao D7 do LCD dever ser conectados aos RD4 a RD7 do PORTD 
+....................  
+.................... #bit RS = PORTD.3 //O pinos RS deve ser ligado ao RD3 
+.................... #bit EN = PORTD.2 //O pino EN deve ser ligado ao RD2 
+.................... //O pino R/W deverá ser ligado ao pino terra (GND) 
+.................... //Os únicos pinos livres do PORTD são RD1 e RD2, você poderá usa-los como desejar 
+....................  
+.................... void comando_lcd(unsigned char);//passa um comando para configurar o LCD (vide datasheet) 
+.................... void quatro_bit_lcd();//Inicializa o LCD para comunicar com 4 bits 
+.................... void caracter_lcd(unsigned char);//envia um caracter  
+.................... void limpa_lcd(void);//limpa todo conteudo do LCD  
+.................... void inicio_lcd(void);//coloca o cursor no inicio, não limpa o LCD 
+.................... void configura_lcd(void);//configura de forma básica o LCD  
+.................... void linha_1_lcd(unsigned char);//coloca o cursor em uma posição na linha 1 max 16 
+.................... void linha_2_lcd(unsigned char);//coloca o cursor em uma posição na linha 2 max 16 
+....................  
+.................... void linha_1_lcd(posicao) 
+....................    { 
+....................    if(posicao >16){posicao = 16;}//como a ultima posição é 16, não deixa ser maior 
+*
+0061:  MOVF   29,W
+0062:  SUBLW  10
+0063:  BTFSC  03.0
+0064:  GOTO   068
+0065:  MOVLW  10
+0066:  MOVWF  29
+....................    else if (posicao == 0){posicao = 1;}//faz sempre posição ser no minimo 1 
+0067:  GOTO   06D
+0068:  MOVF   29,F
+0069:  BTFSS  03.2
+006A:  GOTO   06D
+006B:  MOVLW  01
+006C:  MOVWF  29
+....................    comando_lcd((0b10000000 + posicao)-1);//vai para a segunda linha 
+006D:  MOVLW  80
+006E:  ADDWF  29,W
+006F:  ADDLW  FF
+0070:  MOVWF  2B
+0071:  MOVWF  2C
+0072:  CALL   019
+....................    } 
+0073:  RETLW  00
+....................  
+.................... void linha_2_lcd(posicao) 
+....................    { 
+....................    if(posicao >16){posicao = 16;}//como a ultima posição é 16, não deixa ser maior 
+*
+009A:  MOVF   29,W
+009B:  SUBLW  10
+009C:  BTFSC  03.0
+009D:  GOTO   0A1
+009E:  MOVLW  10
+009F:  MOVWF  29
+....................    else if (posicao == 0){posicao = 1;}//faz sempre posição ser no minimo 1 
+00A0:  GOTO   0A6
+00A1:  MOVF   29,F
+00A2:  BTFSS  03.2
+00A3:  GOTO   0A6
+00A4:  MOVLW  01
+00A5:  MOVWF  29
+....................    comando_lcd((0b11000000  + posicao)-1);//vai para a segunda linha 
+00A6:  MOVLW  C0
+00A7:  ADDWF  29,W
+00A8:  ADDLW  FF
+00A9:  MOVWF  2B
+00AA:  MOVWF  2C
+00AB:  CALL   019
+....................    } 
+00AC:  RETLW  00
+....................  
+.................... void configura_lcd(void) 
+....................    { 
+....................    quatro_bit_lcd();//Chama a rotina que inicializa a comunicação com o LCD a 4 bits 
+....................    comando_lcd(0b00101000);//LCD 4 bits(4), 2 linhas(3), caracter 5*7(2) 
+*
+004B:  MOVLW  28
+004C:  MOVWF  2C
+004D:  CALL   019
+....................    comando_lcd(0b00001100);//Display ligado(2), cursor desligado(1), sem cursor(0) 
+004E:  MOVLW  0C
+004F:  MOVWF  2C
+0050:  CALL   019
+....................    comando_lcd(0b00010100);//Cursor movimenta(3), Cursor movimenta para a direita a cada caracter(2) - irrelevante, pois o cursor esta desligado 
+0051:  MOVLW  14
+0052:  MOVWF  2C
+0053:  CALL   019
+....................    } 
+0054:  BCF    0A.3
+0055:  BCF    0A.4
+0056:  GOTO   32B (RETURN)
+....................  
+.................... void inicio_lcd(void)//rotina que coloca o cursor do display no inicio, mas não limpa o display 
+....................    { 
+....................    comando_lcd(0b00000010);//Cursor no inicio(1) 
+0057:  MOVLW  02
+0058:  MOVWF  2C
+0059:  CALL   019
+....................    } 
+005A:  BCF    0A.3
+005B:  BCF    0A.4
+005C:  GOTO   32C (RETURN)
+....................  
+.................... void limpa_lcd(void)//rotina que envia o comando para limpar todos os dados do LCD 
+....................    { 
+....................    comando_lcd(0b00000001);//limpa display (0) 
+005D:  MOVLW  01
+005E:  MOVWF  2C
+005F:  CALL   019
+....................    } 
+0060:  RETLW  00
+....................  
+.................... void caracter_lcd(caracter)//Rotina para enviar um caracter para o LCD 
+....................    { 
+....................    unsigned char caracter_temp = 0;//Armazena o caracter temporariamente 
+*
+0074:  CLRF   2C
+....................    RS = 1;//Coloca o LCD para receber um caracter 
+0075:  BSF    08.3
+....................    EN = 0;//Confirma que esta desabilitado 
+0076:  BCF    08.2
+....................     
+....................    caracter_temp = caracter;//Salva o caracter original 
+0077:  MOVF   2B,W
+0078:  MOVWF  2C
+....................     
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+0079:  BCF    08.7
+....................    bit_clear(LCD,6); 
+007A:  BCF    08.6
+....................    bit_clear(LCD,5); 
+007B:  BCF    08.5
+....................    bit_clear(LCD,4); 
+007C:  BCF    08.4
+....................     
+....................    bit_clear(caracter,0);//Limpa os bits menos significativos do caracter 
+007D:  BCF    2B.0
+....................    bit_clear(caracter,1); 
+007E:  BCF    2B.1
+....................    bit_clear(caracter,2); 
+007F:  BCF    2B.2
+....................    bit_clear(caracter,3); 
+0080:  BCF    2B.3
+....................     
+....................    LCD = LCD + caracter;//Envia os bits mais significativos para o LCD sem alterar os outros pinos do PORTD 
+0081:  MOVF   2B,W
+0082:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0083:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0084:  MOVLW  02
+0085:  MOVWF  2E
+0086:  CALL   004
+....................    EN = 0; 
+0087:  BCF    08.2
+....................    
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+0088:  BCF    08.7
+....................    bit_clear(LCD,6); 
+0089:  BCF    08.6
+....................    bit_clear(LCD,5); 
+008A:  BCF    08.5
+....................    bit_clear(LCD,4); 
+008B:  BCF    08.4
+....................     
+....................    swap(caracter_temp);//Troca os Bits mais significativos pelos menos significativos 
+008C:  SWAPF  2C,F
+....................     
+....................    bit_clear(caracter_temp,0);//Limpa os bits menos significativos do caracter_temp 
+008D:  BCF    2C.0
+....................    bit_clear(caracter_temp,1); 
+008E:  BCF    2C.1
+....................    bit_clear(caracter_temp,2); 
+008F:  BCF    2C.2
+....................    bit_clear(caracter_temp,3); 
+0090:  BCF    2C.3
+....................     
+....................    LCD = LCD + caracter_temp;//Envia os bits mais significativos para o LCD sem alterar os outros pinos do PORTD 
+0091:  MOVF   2C,W
+0092:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0093:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0094:  MOVLW  02
+0095:  MOVWF  2E
+0096:  CALL   004
+....................    EN = 0; 
+0097:  BCF    08.2
+....................    RS = 0;    
+0098:  BCF    08.3
+....................    } 
+0099:  RETLW  00
+....................  
+.................... void comando_lcd(comando)//Rotina para enviar um comando para o LCD 
+....................    { 
+....................    unsigned char com_temp = 0;//Variável para salvar o valor original do comando 
+*
+0019:  CLRF   2D
+....................    RS = 0;//Coloca o LCD para receber um comando 
+001A:  BCF    08.3
+....................    EN = 0;//Confirma que esta desabilitado 
+001B:  BCF    08.2
+....................     
+....................    com_temp = comando;//Salva uma cópia do comando 
+001C:  MOVF   2C,W
+001D:  MOVWF  2D
+....................     
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+001E:  BCF    08.7
+....................    bit_clear(LCD,6); 
+001F:  BCF    08.6
+....................    bit_clear(LCD,5); 
+0020:  BCF    08.5
+....................    bit_clear(LCD,4); 
+0021:  BCF    08.4
+....................     
+....................    bit_clear(comando,0);//Limpa os bits menos significativos do comando 
+0022:  BCF    2C.0
+....................    bit_clear(comando,1); 
+0023:  BCF    2C.1
+....................    bit_clear(comando,2); 
+0024:  BCF    2C.2
+....................    bit_clear(comando,3); 
+0025:  BCF    2C.3
+....................     
+....................    LCD = LCD + comando;//Envia os bits mais significativos para o LCD sem alterar os outros pinos do PORTD 
+0026:  MOVF   2C,W
+0027:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0028:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0029:  MOVLW  02
+002A:  MOVWF  2E
+002B:  CALL   004
+....................    EN = 0; 
+002C:  BCF    08.2
+....................  
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+002D:  BCF    08.7
+....................    bit_clear(LCD,6); 
+002E:  BCF    08.6
+....................    bit_clear(LCD,5); 
+002F:  BCF    08.5
+....................    bit_clear(LCD,4); 
+0030:  BCF    08.4
+....................  
+....................  
+....................    swap(com_temp);//Troca os Bits mais significativos pelos menos significativos 
+0031:  SWAPF  2D,F
+....................  
+....................    bit_clear(com_temp,0);//Limpa os bits menos significativos do com_temp 
+0032:  BCF    2D.0
+....................    bit_clear(com_temp,1); 
+0033:  BCF    2D.1
+....................    bit_clear(com_temp,2); 
+0034:  BCF    2D.2
+....................    bit_clear(com_temp,3); 
+0035:  BCF    2D.3
+....................     
+....................    LCD = LCD + com_temp;//passa o comando para o barramento de dados do LCD 
+0036:  MOVF   2D,W
+0037:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0038:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0039:  MOVLW  02
+003A:  MOVWF  2E
+003B:  CALL   004
+....................    EN = 0; 
+003C:  BCF    08.2
+....................    } 
+003D:  RETLW  00
+....................     
+.................... void quatro_bit_lcd()//Rotina para configurar o LCD para trabalhar a 4 bits 
+....................    { 
+....................    RS = 0;//Coloca o LCD para receber um comando 
+003E:  BCF    08.3
+....................    EN = 0;//Confirma que esta desabilitado 
+003F:  BCF    08.2
+....................  
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+0040:  BCF    08.7
+....................    bit_clear(LCD,6); 
+0041:  BCF    08.6
+....................    bit_clear(LCD,5); 
+0042:  BCF    08.5
+....................    bit_clear(LCD,4); 
+0043:  BCF    08.4
+....................     
+....................    LCD = LCD + 0b00100000;//Envia o comando para o LCD trabalhar a 4 bits sem alterar os outros bits do PORTD 
+0044:  MOVLW  20
+0045:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0046:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0047:  MOVLW  02
+0048:  MOVWF  2E
+0049:  CALL   004
+....................    EN = 0; 
+004A:  BCF    08.2
+....................    } 
+....................  
+.................... /****************************************************************************** 
+.................... *  Ligações do LCD                                                            * 
+.................... *   D7 -> RD7 (PORTD 7)                                                       * 
+.................... *   D6 -> RD6 (PORTD 6)                                                       * 
+.................... *   D5 -> RD5 (PORTD 5)                                                       * 
+.................... *   D4 -> RD4 (PORTD 4)                                                       * 
+.................... *   RS -> RD3 (PORTD 3)                                                       * 
+.................... *   EN -> RD2 (PORTD 2)                                                       * 
+.................... *   R/W -> Deve ser conectado ao GND                                          * 
+.................... *   VCC -> Deve ser conectado ao +5V                                          * 
+.................... *   GND -> Deve ser conectado ao GND                                          * 
+.................... *   VO -> Deve ser conectado ao potenciômetro/trimpot de ajuste de brilho     * 
+.................... ******************************************************************************/ 
+....................  
+.................... /****************************************************************************** 
+.................... * Ligações do Sensor DHT-11                                                   * 
+.................... *  Out -> Pino RC0 do PORTC                                                   * 
+.................... *  "+" -> Deve ser conectado ao +5V                                           * 
+.................... *  "-" -> Deve ser conectado ao GND                                           * 
+.................... ******************************************************************************/ 
+....................  
+.................... #use fast_io(c)//O controle de direção dos pinos (Entrada/Saida) será feito no programa 
+.................... #use fast_io(d)//O controle de direção dos pinos (Entrada/Saida) será feito no programa 
+....................  
+.................... //Nomeação das portas 
+.................... #byte PORTC = 0x07 //Endereço do PORTC 
+.................... #byte PORTD = 0x08 //Endereço do PORTD 
+....................  
+.................... //Nomeação dos pinos 
+.................... #bit SENSOR = PORTC.0 //Este pino deve ser conectado ao pino Out do Sensor DHT-11 
+....................  
+.................... //Todos os pinos do PORTD estão ligados ao display (D0 a D7 aos RD0 a RD7) 
+....................  
+.................... unsigned char TRISC = 0; 
+*
+02F2:  BCF    03.5
+02F3:  CLRF   20
+.................... #bit DIR_SENSOR = TRISC.0//Bit que irá mudar a direção do pino ligado ao sensor (Entrada(1) ou Saida(0)) 
+....................  
+.................... unsigned char RH_1 = 0; //Armazena a umidade relativa em integral 
+02F4:  CLRF   21
+.................... unsigned char RH_2 = 0; //Armazena a umidade relativa em decimal 
+02F5:  CLRF   22
+.................... unsigned char TEMP_1 = 0;//Armazena a temperatura em integral 
+02F6:  CLRF   23
+.................... unsigned char TEMP_2 = 0;//Armazena a temperatura em decimal 
+02F7:  CLRF   24
+.................... unsigned char CKSUN = 0;//Armazena o check sum da recepção 
+02F8:  CLRF   25
+....................  
+.................... unsigned char n_byte = 0;//Armazena o valor do byte lido (Enviado pelo sensor) 
+02F9:  CLRF   26
+....................  
+.................... unsigned char timeOut = 0;//Ajuda no processo de time Out, ou seja, no tempo limite para aguardar a resposta do sensor 
+02FA:  CLRF   27
+....................  
+....................  
+.................... unsigned char tempo = 0; 
+02FB:  CLRF   28
+....................  
+.................... short ler_sensor(void); //Rotina que lê os valores atuais no sensor 
+.................... void exibe_dado(unsigned char);//Rotina que mostra os dados no display 
+.................... unsigned char ler_byte(void);//Rotina chamada pela ler_sensor() para ler cada byte enviado pelo sensor 
+....................  
+.................... void main() 
+.................... { 
+*
+02B6:  MOVF   03,W
+02B7:  ANDLW  1F
+02B8:  MOVWF  03
+02B9:  MOVLW  57
+02BA:  MOVWF  77
+02BB:  MOVLW  20
+02BC:  MOVWF  04
+02BD:  BCF    03.7
+02BE:  CLRF   00
+02BF:  INCF   04,F
+02C0:  DECFSZ 77,F
+02C1:  GOTO   2BE
+02C2:  CLRF   78
+02C3:  CLRF   79
+02C4:  CLRF   7A
+02C5:  CLRF   7B
+02C6:  CLRF   7C
+02C7:  CLRF   7D
+02C8:  CLRF   7E
+02C9:  MOVLW  50
+02CA:  MOVWF  77
+02CB:  MOVLW  A0
+02CC:  MOVWF  04
+02CD:  BCF    03.7
+02CE:  CLRF   00
+02CF:  INCF   04,F
+02D0:  DECFSZ 77,F
+02D1:  GOTO   2CE
+02D2:  MOVLW  60
+02D3:  MOVWF  77
+02D4:  MOVLW  10
+02D5:  MOVWF  04
+02D6:  BSF    03.7
+02D7:  CLRF   00
+02D8:  INCF   04,F
+02D9:  DECFSZ 77,F
+02DA:  GOTO   2D7
+02DB:  BCF    03.7
+02DC:  MOVLW  60
+02DD:  MOVWF  77
+02DE:  MOVLW  90
+02DF:  MOVWF  04
+02E0:  BSF    03.7
+02E1:  CLRF   00
+02E2:  INCF   04,F
+02E3:  DECFSZ 77,F
+02E4:  GOTO   2E1
+02E5:  BCF    03.7
+02E6:  CLRF   20
+02E7:  CLRF   04
+02E8:  BCF    03.7
+02E9:  MOVLW  1F
+02EA:  ANDWF  03,F
+02EB:  BSF    03.5
+02EC:  BSF    1F.0
+02ED:  BSF    1F.1
+02EE:  BSF    1F.2
+02EF:  BCF    1F.3
+02F0:  MOVLW  07
+02F1:  MOVWF  1C
+....................  
+....................    setup_adc_ports(NO_ANALOGS); 
+*
+02FC:  BSF    03.5
+02FD:  BSF    1F.0
+02FE:  BSF    1F.1
+02FF:  BSF    1F.2
+0300:  BCF    1F.3
+....................    setup_adc(ADC_OFF); 
+0301:  BCF    03.5
+0302:  BCF    1F.0
+....................    setup_psp(PSP_DISABLED); 
+0303:  BSF    03.5
+0304:  BCF    09.4
+....................    setup_spi(SPI_SS_DISABLED); 
+0305:  BCF    03.5
+0306:  BCF    14.5
+0307:  MOVLW  01
+0308:  MOVWF  14
+0309:  MOVLW  00
+030A:  BSF    03.5
+030B:  MOVWF  14
+....................    setup_timer_1(T1_DISABLED); 
+030C:  BCF    03.5
+030D:  CLRF   10
+....................    setup_timer_2(T2_DISABLED,0,1); 
+030E:  MOVWF  78
+030F:  MOVWF  12
+0310:  MOVLW  00
+0311:  BSF    03.5
+0312:  MOVWF  12
+....................    setup_comparator(NC_NC_NC_NC); 
+0313:  MOVLW  07
+0314:  MOVWF  1C
+0315:  MOVF   05,W
+0316:  MOVLW  03
+0317:  MOVWF  77
+0318:  DECFSZ 77,F
+0319:  GOTO   318
+031A:  MOVF   1C,W
+031B:  BCF    03.5
+031C:  BCF    0D.6
+....................    setup_vref(FALSE); 
+031D:  BSF    03.5
+031E:  CLRF   1D
+....................    // enable_interrupts(INT_RTCC); 
+....................    //enable_interrupts(GLOBAL); 
+....................  
+....................    // TODO: USER CODE!! 
+....................    setup_timer_0(RTCC_INTERNAL|RTCC_DIV_2); //Usando o TMR0 1:2 
+031F:  MOVF   01,W
+0320:  ANDLW  C0
+0321:  MOVWF  01
+....................     
+....................    DIR_SENSOR = 1;//Pino do sensor começa como entrada. 
+0322:  BCF    03.5
+0323:  BSF    20.0
+....................    set_tris_c(TRISC); 
+0324:  MOVF   20,W
+0325:  BSF    03.5
+0326:  MOVWF  07
+....................     
+....................    //Se você quiser mudar a direção dos outros pinos do PORTC, some o valor ao TRISC e depois chame set_tris_c(TRISC) 
+....................    //Desta forma você não estará alterando a direção do pino do sensor, não use a função set_tris_c() com a configuração direta 
+....................     
+....................    set_tris_d(0b00000000); 
+0327:  MOVLW  00
+0328:  MOVWF  08
+....................     
+....................    configura_lcd();//Chama a rotina que realiza as configurações básicas para o LCD funcionar 
+0329:  BCF    03.5
+032A:  GOTO   03E
+....................    inicio_lcd();//Coloca o cursor no inicio (Quando usado) 
+032B:  GOTO   057
+....................    limpa_lcd();//Limpa os dados do display 
+032C:  CALL   05D
+....................     
+....................    //Mensagem de apresentação 
+....................    linha_1_lcd(2); 
+032D:  MOVLW  02
+032E:  MOVWF  29
+032F:  CALL   061
+....................    caracter_lcd('E'); 
+0330:  MOVLW  45
+0331:  MOVWF  2B
+0332:  CALL   074
+....................    caracter_lcd('X'); 
+0333:  MOVLW  58
+0334:  MOVWF  2B
+0335:  CALL   074
+....................    caracter_lcd('E'); 
+0336:  MOVLW  45
+0337:  MOVWF  2B
+0338:  CALL   074
+....................    caracter_lcd('M'); 
+0339:  MOVLW  4D
+033A:  MOVWF  2B
+033B:  CALL   074
+....................    caracter_lcd('P'); 
+033C:  MOVLW  50
+033D:  MOVWF  2B
+033E:  CALL   074
+....................    caracter_lcd('L'); 
+033F:  MOVLW  4C
+0340:  MOVWF  2B
+0341:  CALL   074
+....................    caracter_lcd('O'); 
+0342:  MOVLW  4F
+0343:  MOVWF  2B
+0344:  CALL   074
+....................    caracter_lcd(' '); 
+0345:  MOVLW  20
+0346:  MOVWF  2B
+0347:  CALL   074
+....................    caracter_lcd('D'); 
+0348:  MOVLW  44
+0349:  MOVWF  2B
+034A:  CALL   074
+....................    caracter_lcd('T'); 
+034B:  MOVLW  54
+034C:  MOVWF  2B
+034D:  CALL   074
+....................    caracter_lcd('H'); 
+034E:  MOVLW  48
+034F:  MOVWF  2B
+0350:  CALL   074
+....................    caracter_lcd('1'); 
+0351:  MOVLW  31
+0352:  MOVWF  2B
+0353:  CALL   074
+....................    caracter_lcd('1'); 
+0354:  MOVLW  31
+0355:  MOVWF  2B
+0356:  CALL   074
+....................     
+....................    linha_2_lcd(2);    
+0357:  MOVLW  02
+0358:  MOVWF  29
+0359:  CALL   09A
+....................    caracter_lcd('M'); 
+035A:  MOVLW  4D
+035B:  MOVWF  2B
+035C:  CALL   074
+....................    caracter_lcd('S'); 
+035D:  MOVLW  53
+035E:  MOVWF  2B
+035F:  CALL   074
+....................    caracter_lcd('S'); 
+0360:  MOVLW  53
+0361:  MOVWF  2B
+0362:  CALL   074
+....................    caracter_lcd(' '); 
+0363:  MOVLW  20
+0364:  MOVWF  2B
+0365:  CALL   074
+....................    caracter_lcd('E'); 
+0366:  MOVLW  45
+0367:  MOVWF  2B
+0368:  CALL   074
+....................    caracter_lcd('L'); 
+0369:  MOVLW  4C
+036A:  MOVWF  2B
+036B:  CALL   074
+....................    caracter_lcd('E'); 
+036C:  MOVLW  45
+036D:  MOVWF  2B
+036E:  CALL   074
+....................    caracter_lcd('T'); 
+036F:  MOVLW  54
+0370:  MOVWF  2B
+0371:  CALL   074
+....................    caracter_lcd('R'); 
+0372:  MOVLW  52
+0373:  MOVWF  2B
+0374:  CALL   074
+....................    caracter_lcd('O'); 
+0375:  MOVLW  4F
+0376:  MOVWF  2B
+0377:  CALL   074
+....................    caracter_lcd('N'); 
+0378:  MOVLW  4E
+0379:  MOVWF  2B
+037A:  CALL   074
+....................    caracter_lcd('I'); 
+037B:  MOVLW  49
+037C:  MOVWF  2B
+037D:  CALL   074
+....................    caracter_lcd('C'); 
+037E:  MOVLW  43
+037F:  MOVWF  2B
+0380:  CALL   074
+....................    caracter_lcd('A'); 
+0381:  MOVLW  41
+0382:  MOVWF  2B
+0383:  CALL   074
+....................     
+....................    delay_ms(4000);//Aguarda 4 segundos 
+0384:  MOVLW  10
+0385:  MOVWF  29
+0386:  MOVLW  FA
+0387:  MOVWF  2E
+0388:  CALL   004
+0389:  DECFSZ 29,F
+038A:  GOTO   386
+....................    limpa_lcd();//Apaga a mensagem 
+038B:  CALL   05D
+....................    //Fim da mensagem 
+....................     
+....................     
+....................    while(1)//Loop infinito do programa 
+....................       { 
+....................        
+....................       if(ler_sensor())//Chama a rotina que lê o sensor e testa se a leitura foi realizada 
+038C:  GOTO   221
+038D:  MOVF   78,F
+038E:  BTFSC  03.2
+038F:  GOTO   3D6
+....................          { 
+....................          //Não vamos exibir: RH_dec (Esta sempre em zero), TEMP_dec (Esta sempre em zero), CKSUN -> Usado para confirmar se o valor lido esta correto 
+....................           
+....................          if((RH_1+RH_2+TEMP_1+TEMP_2)==CKSUN)//Testa se os dados da leitura que foram recebidos estão corretos 
+0390:  MOVF   22,W
+0391:  ADDWF  21,W
+0392:  ADDWF  23,W
+0393:  ADDWF  24,W
+0394:  SUBWF  25,W
+0395:  BTFSS  03.2
+0396:  GOTO   3C2
+....................             { 
+....................             linha_1_lcd(1);//Coloca o LCD no primeiro caracter da primeira linha 
+0397:  MOVLW  01
+0398:  MOVWF  29
+0399:  CALL   061
+....................             caracter_lcd('R'); 
+039A:  MOVLW  52
+039B:  MOVWF  2B
+039C:  CALL   074
+....................             caracter_lcd('H'); 
+039D:  MOVLW  48
+039E:  MOVWF  2B
+039F:  CALL   074
+....................             caracter_lcd(':'); 
+03A0:  MOVLW  3A
+03A1:  MOVWF  2B
+03A2:  CALL   074
+....................             exibe_dado(RH_1); 
+03A3:  MOVF   21,W
+03A4:  MOVWF  29
+03A5:  CALL   295
+....................             caracter_lcd('%'); 
+03A6:  MOVLW  25
+03A7:  MOVWF  2B
+03A8:  CALL   074
+....................             linha_2_lcd(1);//Coloca o LCD no primeiro caracter da segunda linha 
+03A9:  MOVLW  01
+03AA:  MOVWF  29
+03AB:  CALL   09A
+....................             caracter_lcd('T'); 
+03AC:  MOVLW  54
+03AD:  MOVWF  2B
+03AE:  CALL   074
+....................             caracter_lcd('E'); 
+03AF:  MOVLW  45
+03B0:  MOVWF  2B
+03B1:  CALL   074
+....................             caracter_lcd('M'); 
+03B2:  MOVLW  4D
+03B3:  MOVWF  2B
+03B4:  CALL   074
+....................             caracter_lcd('P'); 
+03B5:  MOVLW  50
+03B6:  MOVWF  2B
+03B7:  CALL   074
+....................             caracter_lcd(':'); 
+03B8:  MOVLW  3A
+03B9:  MOVWF  2B
+03BA:  CALL   074
+....................             exibe_dado(TEMP_1); 
+03BB:  MOVF   23,W
+03BC:  MOVWF  29
+03BD:  CALL   295
+....................             caracter_lcd('C');            
+03BE:  MOVLW  43
+03BF:  MOVWF  2B
+03C0:  CALL   074
+....................             } 
+....................             else//Se não estiver, use este espaço para tratar o erro, ou exibir uma mensagem 
+03C1:  GOTO   3D5
+....................                { 
+....................                limpa_lcd(); 
+03C2:  CALL   05D
+....................                linha_1_lcd(1); 
+03C3:  MOVLW  01
+03C4:  MOVWF  29
+03C5:  CALL   061
+....................                caracter_lcd('E'); 
+03C6:  MOVLW  45
+03C7:  MOVWF  2B
+03C8:  CALL   074
+....................                caracter_lcd('R'); 
+03C9:  MOVLW  52
+03CA:  MOVWF  2B
+03CB:  CALL   074
+....................                caracter_lcd('R'); 
+03CC:  MOVLW  52
+03CD:  MOVWF  2B
+03CE:  CALL   074
+....................                caracter_lcd('O'); 
+03CF:  MOVLW  4F
+03D0:  MOVWF  2B
+03D1:  CALL   074
+....................                caracter_lcd('!'); 
+03D2:  MOVLW  21
+03D3:  MOVWF  2B
+03D4:  CALL   074
+....................                } 
+....................          } 
+....................          else//Caso a leitura não seja realizado por algum erro, executa a rotina abaixo 
+03D5:  GOTO   3E9
+....................             { 
+....................             limpa_lcd(); 
+03D6:  CALL   05D
+....................             linha_1_lcd(1); 
+03D7:  MOVLW  01
+03D8:  MOVWF  29
+03D9:  CALL   061
+....................             caracter_lcd('E'); 
+03DA:  MOVLW  45
+03DB:  MOVWF  2B
+03DC:  CALL   074
+....................             caracter_lcd('R'); 
+03DD:  MOVLW  52
+03DE:  MOVWF  2B
+03DF:  CALL   074
+....................             caracter_lcd('R'); 
+03E0:  MOVLW  52
+03E1:  MOVWF  2B
+03E2:  CALL   074
+....................             caracter_lcd('O'); 
+03E3:  MOVLW  4F
+03E4:  MOVWF  2B
+03E5:  CALL   074
+....................             caracter_lcd('!'); 
+03E6:  MOVLW  21
+03E7:  MOVWF  2B
+03E8:  CALL   074
+....................             } 
+....................              
+....................       delay_ms(1000); //Garante o tempo mínimo para cada leitura no sensor (O fabricante pede 1s) 
+03E9:  MOVLW  04
+03EA:  MOVWF  29
+03EB:  MOVLW  FA
+03EC:  MOVWF  2E
+03ED:  CALL   004
+03EE:  DECFSZ 29,F
+03EF:  GOTO   3EB
+....................       } 
+03F0:  GOTO   38C
+....................  
+.................... } 
+....................  
+.................... void exibe_dado(dado) 
+....................    { 
+03F1:  SLEEP
+....................    unsigned char x = 0; 
+*
+0295:  CLRF   2A
+....................     
+....................    x = dado / 10; //Pega dezena e unidade de milhar, centena e desena (Ex: 12345, pega '1234') Inteiro de 12345/10 
+0296:  MOVF   29,W
+0297:  MOVWF  2B
+0298:  MOVLW  0A
+0299:  MOVWF  2C
+029A:  CALL   280
+029B:  MOVF   78,W
+029C:  MOVWF  2A
+....................    x = x % 10; //Pega a dezena (Ex: 12345, pega apenas '4') o resto da divisão 1234/10 
+029D:  MOVF   2A,W
+029E:  MOVWF  2B
+029F:  MOVLW  0A
+02A0:  MOVWF  2C
+02A1:  CALL   280
+02A2:  MOVF   77,W
+02A3:  MOVWF  2A
+....................    x = x + 48;//Converte em caracter ASCII 
+02A4:  MOVLW  30
+02A5:  ADDWF  2A,F
+....................    caracter_lcd(x);//Envia para o LCD 
+02A6:  MOVF   2A,W
+02A7:  MOVWF  2B
+02A8:  CALL   074
+....................     
+....................    x = dado % 10;//Pega a unidade (Ex: 12345, pega apenas '5')  Resto de 12345/10 
+02A9:  MOVF   29,W
+02AA:  MOVWF  2B
+02AB:  MOVLW  0A
+02AC:  MOVWF  2C
+02AD:  CALL   280
+02AE:  MOVF   77,W
+02AF:  MOVWF  2A
+....................    x = x + 48;//Converte em caracter ASCII 
+02B0:  MOVLW  30
+02B1:  ADDWF  2A,F
+....................    caracter_lcd(x);//Envia para o LCD   
+02B2:  MOVF   2A,W
+02B3:  MOVWF  2B
+02B4:  CALL   074
+....................     
+....................    } 
+02B5:  RETLW  00
+....................  
+.................... short ler_sensor(void)  
+....................    { 
+....................    RH_1 = 0; 
+*
+0221:  CLRF   21
+....................    RH_2 = 0; 
+0222:  CLRF   22
+....................    TEMP_1 = 0; 
+0223:  CLRF   23
+....................    TEMP_2 = 0; 
+0224:  CLRF   24
+....................    CKSUN = 0;  //Inicia com todos os bytes em 0 (zero) 
+0225:  CLRF   25
+....................     
+....................    DIR_SENSOR = 0;//Coloca o pino ligado ao Sensor como saida 
+0226:  BCF    20.0
+....................    set_tris_c(TRISC); 
+0227:  MOVF   20,W
+0228:  BSF    03.5
+0229:  MOVWF  07
+....................     
+....................    SENSOR = 0; //Inicia o pedido de dados ao sensor 
+022A:  BCF    03.5
+022B:  BCF    07.0
+....................    delay_ms(20);//Aguarda 20mS, para o Sensor detectar o pulso 
+022C:  MOVLW  14
+022D:  MOVWF  2E
+022E:  CALL   004
+....................     
+....................    SENSOR = 1;//Coloca em nível alto novamente 
+022F:  BSF    07.0
+....................    DIR_SENSOR = 1;//Coloca o pino ligado ao Sensor como entrada 
+0230:  BSF    20.0
+....................    set_tris_c(TRISC); 
+0231:  MOVF   20,W
+0232:  BSF    03.5
+0233:  MOVWF  07
+....................     
+....................    //Fazer timerOut 
+....................    while(SENSOR){}//Aguarda o sensor confirmar que recebeu o comando 
+0234:  BCF    03.5
+0235:  BTFSC  07.0
+0236:  GOTO   235
+....................     
+....................    set_timer0(0);//Reinicia o TMR0 
+0237:  CLRF   01
+....................     
+....................    timeOut = 255; 
+0238:  MOVLW  FF
+0239:  MOVWF  27
+....................    while(!SENSOR)//Aguarda o tempo em nivel baixo (80us) antes de começar a receber os bits 
+....................          {//Para entender melhor, olhe o datasheet 
+023A:  BTFSC  07.0
+023B:  GOTO   245
+....................          if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+023C:  MOVF   27,F
+023D:  BTFSS  03.2
+023E:  GOTO   242
+023F:  MOVLW  00
+0240:  MOVWF  78
+0241:  GOTO   27D
+....................          timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+0242:  MOVLW  01
+0243:  SUBWF  27,F
+....................          } 
+0244:  GOTO   23A
+....................     
+....................    tempo = get_timer0();//Le o tempo no TMR0 
+0245:  MOVF   01,W
+0246:  MOVWF  28
+....................    set_timer0(0);//Reinicia o TMR0 para a proxima contagem de tempo 
+0247:  CLRF   01
+....................    tempo = tempo * 2;//Multiplica por 2 porque o prescaller esta 1:2 
+0248:  BCF    03.0
+0249:  RLF    28,F
+....................     
+....................    if(tempo > 40)//Tempo informado no datasheet é de 80uS 
+024A:  MOVF   28,W
+024B:  SUBLW  28
+024C:  BTFSC  03.0
+024D:  GOTO   278
+....................       { 
+....................       timeOut = 255; 
+024E:  MOVLW  FF
+024F:  MOVWF  27
+....................       while(SENSOR)//Aguarda o tempo em nivel alto (80us) antes de começar a receber os bits 
+....................             {//Para entender melhor, olhe o datasheet 
+0250:  BTFSS  07.0
+0251:  GOTO   25B
+....................             if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+0252:  MOVF   27,F
+0253:  BTFSS  03.2
+0254:  GOTO   258
+0255:  MOVLW  00
+0256:  MOVWF  78
+0257:  GOTO   27D
+....................             timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+0258:  MOVLW  01
+0259:  SUBWF  27,F
+....................             } 
+025A:  GOTO   250
+....................                       
+....................                       
+....................       tempo = get_timer0(); 
+025B:  MOVF   01,W
+025C:  MOVWF  28
+....................       set_timer0(0); 
+025D:  CLRF   01
+....................       tempo = tempo * 2; 
+025E:  BCF    03.0
+025F:  RLF    28,F
+....................     
+....................       if(tempo > 40)//Tempo informado no datasheet é de 80uS 
+0260:  MOVF   28,W
+0261:  SUBLW  28
+0262:  BTFSC  03.0
+0263:  GOTO   274
+....................          {          
+....................          RH_1 = ler_byte();//Le o 1º byte -> Este esta informando o umidade relativa 
+0264:  CALL   0AD
+0265:  MOVF   78,W
+0266:  MOVWF  21
+....................          RH_2 = ler_byte();//Le o 2º byte -> Esta esta sempre vindo em zero 
+0267:  CALL   0AD
+0268:  MOVF   78,W
+0269:  MOVWF  22
+....................          TEMP_1 = ler_byte();//Le o 3º byte -> Este esta informando a temperatura 
+026A:  CALL   0AD
+026B:  MOVF   78,W
+026C:  MOVWF  23
+....................          TEMP_2 = ler_byte();//Le o 4º byte -> Esta esta sempre vindo em zero 
+026D:  CALL   0AD
+026E:  MOVF   78,W
+026F:  MOVWF  24
+....................          CKSUN = ler_byte();//Le 0 5º byte -> CheckSum (É o resultado da soma dos 4 bytes anteriores) 
+0270:  CALL   0AD
+0271:  MOVF   78,W
+0272:  MOVWF  25
+....................          } 
+....................          else 
+0273:  GOTO   277
+....................              { 
+....................              return false;//Rotorna que ocorreu um erro na leitura 
+0274:  MOVLW  00
+0275:  MOVWF  78
+0276:  GOTO   27D
+....................              } 
+....................        } 
+....................        else 
+0277:  GOTO   27B
+....................             { 
+....................             return false;//Rotorna que ocorreu um erro na leitura 
+0278:  MOVLW  00
+0279:  MOVWF  78
+027A:  GOTO   27D
+....................             } 
+....................              
+....................        return true;//Informa que realizou a leitura 
+027B:  MOVLW  01
+027C:  MOVWF  78
+.................... } 
+027D:  BCF    0A.3
+027E:  BCF    0A.4
+027F:  GOTO   38D (RETURN)
+....................   
+.................... unsigned char ler_byte(void)//Rotina responsavel por ler cada byte enviado pelo sensor 
+....................    { 
+....................    n_byte = 0; 
+*
+00AD:  CLRF   26
+....................     
+....................    //Primeiro recebemos o bit´s mais significativos 
+....................     
+....................    //Bit 7 
+....................    timeOut = 255; 
+00AE:  MOVLW  FF
+00AF:  MOVWF  27
+....................    while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS) 
+....................       { 
+00B0:  BTFSC  07.0
+00B1:  GOTO   0BB
+....................       if(timeOut == 0){return false;} 
+00B2:  MOVF   27,F
+00B3:  BTFSS  03.2
+00B4:  GOTO   0B8
+00B5:  MOVLW  00
+00B6:  MOVWF  78
+00B7:  GOTO   220
+....................       timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+00B8:  MOVLW  01
+00B9:  SUBWF  27,F
+....................       } 
+00BA:  GOTO   0B0
+....................     
+....................    tempo = get_timer0();//Le o tempo no TMR1 
+00BB:  MOVF   01,W
+00BC:  MOVWF  28
+....................    set_timer0(0);//Reinicia o TMR1 para proxima leitura 
+00BD:  CLRF   01
+....................    tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2 
+00BE:  BCF    03.0
+00BF:  RLF    28,F
+....................              
+....................    if(tempo > 25)//Ele fica em nivel baixo por 50 uS 
+00C0:  MOVF   28,W
+00C1:  SUBLW  19
+00C2:  BTFSC  03.0
+00C3:  GOTO   0DC
+....................       { 
+....................        
+....................       timeOut = 255; 
+00C4:  MOVLW  FF
+00C5:  MOVWF  27
+....................       while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1) 
+....................          { 
+00C6:  BTFSS  07.0
+00C7:  GOTO   0D1
+....................          if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+00C8:  MOVF   27,F
+00C9:  BTFSS  03.2
+00CA:  GOTO   0CE
+00CB:  MOVLW  00
+00CC:  MOVWF  78
+00CD:  GOTO   220
+....................          timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+00CE:  MOVLW  01
+00CF:  SUBWF  27,F
+....................          } 
+00D0:  GOTO   0C6
+....................       tempo = get_timer0(); 
+00D1:  MOVF   01,W
+00D2:  MOVWF  28
+....................       set_timer0(0); 
+00D3:  CLRF   01
+....................       tempo = tempo * 2; 
+00D4:  BCF    03.0
+00D5:  RLF    28,F
+....................                   
+....................       if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS 
+00D6:  MOVF   28,W
+00D7:  SUBLW  23
+00D8:  BTFSC  03.0
+00D9:  GOTO   0DC
+....................          { 
+....................          n_byte = n_byte + 0b10000000;//Set o Bit 7 
+00DA:  MOVLW  80
+00DB:  ADDWF  26,F
+....................          } 
+....................          //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0) 
+....................       } 
+....................     
+....................    //Bit 6 
+....................    timeOut = 255; 
+00DC:  MOVLW  FF
+00DD:  MOVWF  27
+....................    while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS) 
+....................       { 
+00DE:  BTFSC  07.0
+00DF:  GOTO   0E9
+....................       if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+00E0:  MOVF   27,F
+00E1:  BTFSS  03.2
+00E2:  GOTO   0E6
+00E3:  MOVLW  00
+00E4:  MOVWF  78
+00E5:  GOTO   220
+....................       timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+00E6:  MOVLW  01
+00E7:  SUBWF  27,F
+....................       } 
+00E8:  GOTO   0DE
+....................     
+....................    tempo = get_timer0();//Le o tempo no TMR1 
+00E9:  MOVF   01,W
+00EA:  MOVWF  28
+....................    set_timer0(0);//Reinicia o TMR1 para proxima leitura 
+00EB:  CLRF   01
+....................    tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2 
+00EC:  BCF    03.0
+00ED:  RLF    28,F
+....................              
+....................    if(tempo > 25)//Ele fica em nivel baixo por 50 uS 
+00EE:  MOVF   28,W
+00EF:  SUBLW  19
+00F0:  BTFSC  03.0
+00F1:  GOTO   10A
+....................       { 
+....................        
+....................       timeOut = 255; 
+00F2:  MOVLW  FF
+00F3:  MOVWF  27
+....................       while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1) 
+....................          { 
+00F4:  BTFSS  07.0
+00F5:  GOTO   0FF
+....................          if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+00F6:  MOVF   27,F
+00F7:  BTFSS  03.2
+00F8:  GOTO   0FC
+00F9:  MOVLW  00
+00FA:  MOVWF  78
+00FB:  GOTO   220
+....................          timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+00FC:  MOVLW  01
+00FD:  SUBWF  27,F
+....................          } 
+00FE:  GOTO   0F4
+....................       tempo = get_timer0(); 
+00FF:  MOVF   01,W
+0100:  MOVWF  28
+....................       set_timer0(0); 
+0101:  CLRF   01
+....................       tempo = tempo * 2; 
+0102:  BCF    03.0
+0103:  RLF    28,F
+....................                   
+....................       if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS 
+0104:  MOVF   28,W
+0105:  SUBLW  23
+0106:  BTFSC  03.0
+0107:  GOTO   10A
+....................          { 
+....................          n_byte = n_byte + 0b01000000;//Set o Bit 6 
+0108:  MOVLW  40
+0109:  ADDWF  26,F
+....................          } 
+....................          //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0) 
+....................       } 
+....................            
+....................    //Bit 5 
+....................    timeOut = 255; 
+010A:  MOVLW  FF
+010B:  MOVWF  27
+....................    while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS) 
+....................       { 
+010C:  BTFSC  07.0
+010D:  GOTO   117
+....................       if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+010E:  MOVF   27,F
+010F:  BTFSS  03.2
+0110:  GOTO   114
+0111:  MOVLW  00
+0112:  MOVWF  78
+0113:  GOTO   220
+....................       timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+0114:  MOVLW  01
+0115:  SUBWF  27,F
+....................       } 
+0116:  GOTO   10C
+....................     
+....................    tempo = get_timer0();//Le o tempo no TMR1 
+0117:  MOVF   01,W
+0118:  MOVWF  28
+....................    set_timer0(0);//Reinicia o TMR1 para proxima leitura 
+0119:  CLRF   01
+....................    tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2 
+011A:  BCF    03.0
+011B:  RLF    28,F
+....................              
+....................    if(tempo > 25)//Ele fica em nivel baixo por 50 uS 
+011C:  MOVF   28,W
+011D:  SUBLW  19
+011E:  BTFSC  03.0
+011F:  GOTO   138
+....................       { 
+....................        
+....................       timeOut = 255; 
+0120:  MOVLW  FF
+0121:  MOVWF  27
+....................       while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1) 
+....................          { 
+0122:  BTFSS  07.0
+0123:  GOTO   12D
+....................          if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+0124:  MOVF   27,F
+0125:  BTFSS  03.2
+0126:  GOTO   12A
+0127:  MOVLW  00
+0128:  MOVWF  78
+0129:  GOTO   220
+....................          timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+012A:  MOVLW  01
+012B:  SUBWF  27,F
+....................          } 
+012C:  GOTO   122
+....................       tempo = get_timer0(); 
+012D:  MOVF   01,W
+012E:  MOVWF  28
+....................       set_timer0(0); 
+012F:  CLRF   01
+....................       tempo = tempo * 2; 
+0130:  BCF    03.0
+0131:  RLF    28,F
+....................                   
+....................       if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS 
+0132:  MOVF   28,W
+0133:  SUBLW  23
+0134:  BTFSC  03.0
+0135:  GOTO   138
+....................          { 
+....................          n_byte = n_byte + 0b00100000;//Set o Bit 5 
+0136:  MOVLW  20
+0137:  ADDWF  26,F
+....................          } 
+....................          //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0) 
+....................       } 
+....................        
+....................    //Bit 4 
+....................    timeOut = 255; 
+0138:  MOVLW  FF
+0139:  MOVWF  27
+....................    while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS) 
+....................       { 
+013A:  BTFSC  07.0
+013B:  GOTO   145
+....................       if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+013C:  MOVF   27,F
+013D:  BTFSS  03.2
+013E:  GOTO   142
+013F:  MOVLW  00
+0140:  MOVWF  78
+0141:  GOTO   220
+....................       timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+0142:  MOVLW  01
+0143:  SUBWF  27,F
+....................       } 
+0144:  GOTO   13A
+....................     
+....................    tempo = get_timer0();//Le o tempo no TMR1 
+0145:  MOVF   01,W
+0146:  MOVWF  28
+....................    set_timer0(0);//Reinicia o TMR1 para proxima leitura 
+0147:  CLRF   01
+....................    tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2 
+0148:  BCF    03.0
+0149:  RLF    28,F
+....................              
+....................    if(tempo > 25)//Ele fica em nivel baixo por 50 uS 
+014A:  MOVF   28,W
+014B:  SUBLW  19
+014C:  BTFSC  03.0
+014D:  GOTO   166
+....................       { 
+....................        
+....................       timeOut = 255; 
+014E:  MOVLW  FF
+014F:  MOVWF  27
+....................       while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1) 
+....................          { 
+0150:  BTFSS  07.0
+0151:  GOTO   15B
+....................          if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+0152:  MOVF   27,F
+0153:  BTFSS  03.2
+0154:  GOTO   158
+0155:  MOVLW  00
+0156:  MOVWF  78
+0157:  GOTO   220
+....................          timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+0158:  MOVLW  01
+0159:  SUBWF  27,F
+....................          } 
+015A:  GOTO   150
+....................       tempo = get_timer0(); 
+015B:  MOVF   01,W
+015C:  MOVWF  28
+....................       set_timer0(0); 
+015D:  CLRF   01
+....................       tempo = tempo * 2; 
+015E:  BCF    03.0
+015F:  RLF    28,F
+....................                   
+....................       if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS 
+0160:  MOVF   28,W
+0161:  SUBLW  23
+0162:  BTFSC  03.0
+0163:  GOTO   166
+....................          { 
+....................          n_byte = n_byte + 0b00010000;//Set o Bit 4 
+0164:  MOVLW  10
+0165:  ADDWF  26,F
+....................          } 
+....................          //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0) 
+....................       } 
+....................        
+....................    //Bit 3 
+....................    timeOut = 255; 
+0166:  MOVLW  FF
+0167:  MOVWF  27
+....................    while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS) 
+....................       { 
+0168:  BTFSC  07.0
+0169:  GOTO   173
+....................       if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+016A:  MOVF   27,F
+016B:  BTFSS  03.2
+016C:  GOTO   170
+016D:  MOVLW  00
+016E:  MOVWF  78
+016F:  GOTO   220
+....................       timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+0170:  MOVLW  01
+0171:  SUBWF  27,F
+....................       } 
+0172:  GOTO   168
+....................     
+....................    tempo = get_timer0();//Le o tempo no TMR1 
+0173:  MOVF   01,W
+0174:  MOVWF  28
+....................    set_timer0(0);//Reinicia o TMR1 para proxima leitura 
+0175:  CLRF   01
+....................    tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2 
+0176:  BCF    03.0
+0177:  RLF    28,F
+....................              
+....................    if(tempo > 25)//Ele fica em nivel baixo por 50 uS 
+0178:  MOVF   28,W
+0179:  SUBLW  19
+017A:  BTFSC  03.0
+017B:  GOTO   194
+....................       { 
+....................        
+....................       timeOut = 255; 
+017C:  MOVLW  FF
+017D:  MOVWF  27
+....................       while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1) 
+....................          { 
+017E:  BTFSS  07.0
+017F:  GOTO   189
+....................          if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+0180:  MOVF   27,F
+0181:  BTFSS  03.2
+0182:  GOTO   186
+0183:  MOVLW  00
+0184:  MOVWF  78
+0185:  GOTO   220
+....................          timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+0186:  MOVLW  01
+0187:  SUBWF  27,F
+....................          } 
+0188:  GOTO   17E
+....................       tempo = get_timer0(); 
+0189:  MOVF   01,W
+018A:  MOVWF  28
+....................       set_timer0(0); 
+018B:  CLRF   01
+....................       tempo = tempo * 2; 
+018C:  BCF    03.0
+018D:  RLF    28,F
+....................                   
+....................       if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS 
+018E:  MOVF   28,W
+018F:  SUBLW  23
+0190:  BTFSC  03.0
+0191:  GOTO   194
+....................          { 
+....................          n_byte = n_byte + 0b00001000;//Set o Bit 3 
+0192:  MOVLW  08
+0193:  ADDWF  26,F
+....................          } 
+....................          //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0) 
+....................       } 
+....................     
+....................    //Bit 2 
+....................    timeOut = 255; 
+0194:  MOVLW  FF
+0195:  MOVWF  27
+....................    while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS) 
+....................       { 
+0196:  BTFSC  07.0
+0197:  GOTO   1A1
+....................       if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+0198:  MOVF   27,F
+0199:  BTFSS  03.2
+019A:  GOTO   19E
+019B:  MOVLW  00
+019C:  MOVWF  78
+019D:  GOTO   220
+....................       timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+019E:  MOVLW  01
+019F:  SUBWF  27,F
+....................       } 
+01A0:  GOTO   196
+....................     
+....................    tempo = get_timer0();//Le o tempo no TMR1 
+01A1:  MOVF   01,W
+01A2:  MOVWF  28
+....................    set_timer0(0);//Reinicia o TMR1 para proxima leitura 
+01A3:  CLRF   01
+....................    tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2 
+01A4:  BCF    03.0
+01A5:  RLF    28,F
+....................              
+....................    if(tempo > 25)//Ele fica em nivel baixo por 50 uS 
+01A6:  MOVF   28,W
+01A7:  SUBLW  19
+01A8:  BTFSC  03.0
+01A9:  GOTO   1C2
+....................       { 
+....................        
+....................       timeOut = 255; 
+01AA:  MOVLW  FF
+01AB:  MOVWF  27
+....................       while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1) 
+....................          { 
+01AC:  BTFSS  07.0
+01AD:  GOTO   1B7
+....................          if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+01AE:  MOVF   27,F
+01AF:  BTFSS  03.2
+01B0:  GOTO   1B4
+01B1:  MOVLW  00
+01B2:  MOVWF  78
+01B3:  GOTO   220
+....................          timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+01B4:  MOVLW  01
+01B5:  SUBWF  27,F
+....................          } 
+01B6:  GOTO   1AC
+....................       tempo = get_timer0(); 
+01B7:  MOVF   01,W
+01B8:  MOVWF  28
+....................       set_timer0(0); 
+01B9:  CLRF   01
+....................       tempo = tempo * 2; 
+01BA:  BCF    03.0
+01BB:  RLF    28,F
+....................                   
+....................       if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS 
+01BC:  MOVF   28,W
+01BD:  SUBLW  23
+01BE:  BTFSC  03.0
+01BF:  GOTO   1C2
+....................          { 
+....................          n_byte = n_byte + 0b00000100;//Set o Bit 2 
+01C0:  MOVLW  04
+01C1:  ADDWF  26,F
+....................          } 
+....................          //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0) 
+....................       } 
+....................     
+....................    //Bit 1 
+....................    timeOut = 255; 
+01C2:  MOVLW  FF
+01C3:  MOVWF  27
+....................    while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS) 
+....................       { 
+01C4:  BTFSC  07.0
+01C5:  GOTO   1CF
+....................       if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+01C6:  MOVF   27,F
+01C7:  BTFSS  03.2
+01C8:  GOTO   1CC
+01C9:  MOVLW  00
+01CA:  MOVWF  78
+01CB:  GOTO   220
+....................       timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+01CC:  MOVLW  01
+01CD:  SUBWF  27,F
+....................       } 
+01CE:  GOTO   1C4
+....................     
+....................    tempo = get_timer0();//Le o tempo no TMR1 
+01CF:  MOVF   01,W
+01D0:  MOVWF  28
+....................    set_timer0(0);//Reinicia o TMR1 para proxima leitura 
+01D1:  CLRF   01
+....................    tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2 
+01D2:  BCF    03.0
+01D3:  RLF    28,F
+....................              
+....................    if(tempo > 25)//Ele fica em nivel baixo por 50 uS 
+01D4:  MOVF   28,W
+01D5:  SUBLW  19
+01D6:  BTFSC  03.0
+01D7:  GOTO   1F0
+....................       { 
+....................        
+....................       timeOut = 255; 
+01D8:  MOVLW  FF
+01D9:  MOVWF  27
+....................       while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1) 
+....................          { 
+01DA:  BTFSS  07.0
+01DB:  GOTO   1E5
+....................          if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+01DC:  MOVF   27,F
+01DD:  BTFSS  03.2
+01DE:  GOTO   1E2
+01DF:  MOVLW  00
+01E0:  MOVWF  78
+01E1:  GOTO   220
+....................          timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+01E2:  MOVLW  01
+01E3:  SUBWF  27,F
+....................          } 
+01E4:  GOTO   1DA
+....................       tempo = get_timer0(); 
+01E5:  MOVF   01,W
+01E6:  MOVWF  28
+....................       set_timer0(0); 
+01E7:  CLRF   01
+....................       tempo = tempo * 2; 
+01E8:  BCF    03.0
+01E9:  RLF    28,F
+....................                   
+....................       if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS 
+01EA:  MOVF   28,W
+01EB:  SUBLW  23
+01EC:  BTFSC  03.0
+01ED:  GOTO   1F0
+....................          { 
+....................          n_byte = n_byte + 0b00000010;//Set o Bit 1 
+01EE:  MOVLW  02
+01EF:  ADDWF  26,F
+....................          } 
+....................          //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0) 
+....................       } 
+....................     
+....................    //Bit 0 
+....................    timeOut = 255; 
+01F0:  MOVLW  FF
+01F1:  MOVWF  27
+....................    while(!SENSOR)//Aguarda terminar o inicio do Bit (50uS) 
+....................       { 
+01F2:  BTFSC  07.0
+01F3:  GOTO   1FD
+....................       if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+01F4:  MOVF   27,F
+01F5:  BTFSS  03.2
+01F6:  GOTO   1FA
+01F7:  MOVLW  00
+01F8:  MOVWF  78
+01F9:  GOTO   220
+....................       timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+01FA:  MOVLW  01
+01FB:  SUBWF  27,F
+....................       } 
+01FC:  GOTO   1F2
+....................     
+....................    tempo = get_timer0();//Le o tempo no TMR1 
+01FD:  MOVF   01,W
+01FE:  MOVWF  28
+....................    set_timer0(0);//Reinicia o TMR1 para proxima leitura 
+01FF:  CLRF   01
+....................    tempo = tempo * 2;//Multiplica por 2 porque esta configurado para 1:2 
+0200:  BCF    03.0
+0201:  RLF    28,F
+....................              
+....................    if(tempo > 25)//Ele fica em nivel baixo por 50 uS 
+0202:  MOVF   28,W
+0203:  SUBLW  19
+0204:  BTFSC  03.0
+0205:  GOTO   21E
+....................       { 
+....................        
+....................       timeOut = 255; 
+0206:  MOVLW  FF
+0207:  MOVWF  27
+....................       while(SENSOR)//Aguarda terminar a segunda parte do Bit (26-28uS ->Bit 0, 70uS ->Bit 1) 
+....................          { 
+0208:  BTFSS  07.0
+0209:  GOTO   213
+....................          if(timeOut == 0){return false;}//Se decrementar a variável até zerar, já passou mais tempo que o necessário para o sensor responder (máximo 80uS) 
+020A:  MOVF   27,F
+020B:  BTFSS  03.2
+020C:  GOTO   210
+020D:  MOVLW  00
+020E:  MOVWF  78
+020F:  GOTO   220
+....................          timeOut = timeOut -1;//Subtrai uma unidade no timeOut 
+0210:  MOVLW  01
+0211:  SUBWF  27,F
+....................          } 
+0212:  GOTO   208
+....................       tempo = get_timer0(); 
+0213:  MOVF   01,W
+0214:  MOVWF  28
+....................       set_timer0(0); 
+0215:  CLRF   01
+....................       tempo = tempo * 2; 
+0216:  BCF    03.0
+0217:  RLF    28,F
+....................                   
+....................       if(tempo > 35)//O Tempo para nível 1(um) neste ponto é de 70uS 
+0218:  MOVF   28,W
+0219:  SUBLW  23
+021A:  BTFSC  03.0
+021B:  GOTO   21E
+....................          { 
+....................          n_byte = n_byte + 0b00000001;//Set o Bit 0 
+021C:  MOVLW  01
+021D:  ADDWF  26,F
+....................          } 
+....................          //Se o Bit for zero, não é necessário fazer nada, so precisamos colocar os que são 1(um), pois o byte já estará com os outros em zero (0) 
+....................       } 
+....................     
+....................    return n_byte;//Retorna com o Byte recebido 
+021E:  MOVF   26,W
+021F:  MOVWF  78
+....................    } 
+0220:  RETLW  00
+....................     
+....................     
+
+Configuration Fuses:
+   Word  1: 3F3A   HS NOWDT NOPUT NODEBUG NOPROTECT NOBROWNOUT NOLVP NOCPD NOWRT

@@ -1,0 +1,900 @@
+CCS PCM C Compiler, Version 4.074, 38112               02-nov-12 19:33
+
+               Filename: D:\Projetos\Produtos ML\Ultrasom HC-SR04\ultrasom_hc_sr04.lst
+
+               ROM used: 570 words (7%)
+                         Largest free fragment is 2048
+               RAM used: 8 (2%) at main() level
+                         18 (5%) worst case
+               Stack:    3 locations
+
+*
+0000:  MOVLW  00
+0001:  MOVWF  0A
+0002:  GOTO   1A6
+0003:  NOP
+.................... /****************************************************************************** 
+.................... *  Programa de teste para o Sensor de Ultrasom HC-SR04 com LCD 16x2           * 
+.................... *  Desenvolvedor: Misael S. Sales                                             * 
+.................... *  Versão: 1.0                                                                * 
+.................... *  Data: 02/11/2012                                                           * 
+.................... *  PIC: Linha 16F de 40 pinos (Para usar em outros mude o nome das portas )   * 
+.................... *  Display: HD44780                                                           * 
+.................... *  Licença: Livre para uso e modificação                                      * 
+.................... *                                                                             * 
+.................... *  MSS Eletrônica - www.msseletronica.com - msseletronica@hotmail.com.br      * 
+.................... *                                                                             * 
+.................... *******************************************************************************/ 
+....................  
+.................... #include <16F877A.h> 
+.................... //////// Standard Header file for the PIC16F877A device //////////////// 
+.................... #device PIC16F877A 
+.................... #list 
+....................  
+.................... #device *=16 
+.................... #device adc=8 
+....................  
+.................... #FUSES NOWDT                    //No Watch Dog Timer 
+.................... #FUSES XT                       //Crystal osc <= 4mhz for PCM/PCH , 3mhz to 10 mhz for PCD 
+.................... #FUSES NOPUT                    //No Power Up Timer 
+.................... #FUSES NOPROTECT                //Code not protected from reading 
+.................... #FUSES NODEBUG                  //No Debug mode for ICD 
+.................... #FUSES NOBROWNOUT               //No brownout reset 
+.................... #FUSES NOLVP                    //No low voltage prgming, B3(PIC16) or B5(PIC18) used for I/O 
+.................... #FUSES NOCPD                    //No EE protection 
+.................... #FUSES NOWRT                    //Program memory not write protected 
+....................  
+.................... #use delay(clock=4000000) 
+*
+0004:  MOVLW  29
+0005:  MOVWF  04
+0006:  BCF    03.7
+0007:  MOVF   00,W
+0008:  BTFSC  03.2
+0009:  GOTO   018
+000A:  MOVLW  01
+000B:  MOVWF  78
+000C:  CLRF   77
+000D:  DECFSZ 77,F
+000E:  GOTO   00D
+000F:  DECFSZ 78,F
+0010:  GOTO   00C
+0011:  MOVLW  4A
+0012:  MOVWF  77
+0013:  DECFSZ 77,F
+0014:  GOTO   013
+0015:  GOTO   016
+0016:  DECFSZ 00,F
+0017:  GOTO   00A
+0018:  RETLW  00
+....................  
+.................... #ZERO_RAM 
+....................  
+.................... #include <LCD_MSS.h> 
+.................... /****************************************************************************** 
+.................... *  Biblioteca para acionamento de displays de LCD 16x2 a 8 bits               * 
+.................... *  Desenvolvedor: Misael S. Sales                                             * 
+.................... *  Versão: 1.0                                                                * 
+.................... *  Data: 27/10/2012                                                           * 
+.................... *  PIC: Linha 16F de 40 pinos (Para usar em outros mude o nome das portas )   * 
+.................... *  Displays: HD44780                                                          * 
+.................... *  Licença: Livre para uso e modificação                                      * 
+.................... *                                                                             * 
+.................... *  MSS Eletrônica - www.msseletronica.com - msseletronica@hotmail.com.br      * 
+.................... *                                                                             * 
+.................... *******************************************************************************/ 
+....................  
+.................... /****************************************************************************** 
+.................... *  Instruções:                                                                * 
+.................... *                                                                             * 
+.................... *  Coloque o arquivo LCD_MSS.h na mesma pasta do seu projeto                  * 
+.................... *  Inclua esta biblioteca em seu código usando: #include <LCD_MSS.h>          * 
+.................... *  Defina todos os pinos do PORTD como saida                                  * 
+.................... *  Defina os pinos RC0 e RC1 como saida                                       * 
+.................... *                                                                             * 
+.................... *  Funções:                                                                   * 
+.................... *  -> configura_lcd();//configura de forma básica o LCD                       * 
+.................... *  -> caracter_lcd(caracter);//envia um caracter                              * 
+.................... *  -> comando_lcd();//passa um comando para configurar o LCD (vide datasheet) * 
+.................... *  -> inicio_lcd();//coloca o cursor no inicio, não limpa o LCD               * 
+.................... *  -> limpa_lcd();//limpa todo conteudo do LCD                                * 
+.................... *  -> linha_1_lcd(posicao);//coloca o cursor em uma posição na linha 1 max 16 * 
+.................... *  -> linha_2_lcd(posicao);//coloca o cursor em uma posição na linha 2 max 16 * 
+.................... *                                                                             * 
+.................... *  Ligações do LCD                                                            * 
+.................... *   D7 -> RD7 (PORTD 7)                                                       * 
+.................... *   D6 -> RD6 (PORTD 6)                                                       * 
+.................... *   D5 -> RD5 (PORTD 5)                                                       * 
+.................... *   D4 -> RD4 (PORTD 4)                                                       * 
+.................... *   RS -> RD3 (PORTD 3)                                                       * 
+.................... *   EN -> RD2 (PORTD 2)                                                       * 
+.................... *   R/W -> Deve ser conectado ao GND                                          * 
+.................... *   VCC -> Deve ser conectado ao +5V                                          * 
+.................... *   GND -> Deve ser conectado ao GND                                          * 
+.................... *   VO -> Deve ser conectado ao potenciômetro/trimpot de ajuste de brilho     * 
+.................... *******************************************************************************/ 
+....................  
+.................... #byte PORTD = 0x08//endereço fisico do PORTD 
+....................  
+.................... #byte LCD = PORTD //Os D4 ao D7 do LCD dever ser conectados aos RD4 a RD7 do PORTD 
+....................  
+.................... #bit RS = PORTD.3 //O pinos RS deve ser ligado ao RD3 
+.................... #bit EN = PORTD.2 //O pino EN deve ser ligado ao RD2 
+.................... //O pino R/W deverá ser ligado ao pino terra (GND) 
+.................... //Os únicos pinos livres do PORTD são RD1 e RD2, você poderá usa-los como desejar 
+....................  
+.................... void comando_lcd(unsigned char);//passa um comando para configurar o LCD (vide datasheet) 
+.................... void quatro_bit_lcd();//Inicializa o LCD para comunicar com 4 bits 
+.................... void caracter_lcd(unsigned char);//envia um caracter  
+.................... void limpa_lcd(void);//limpa todo conteudo do LCD  
+.................... void inicio_lcd(void);//coloca o cursor no inicio, não limpa o LCD 
+.................... void configura_lcd(void);//configura de forma básica o LCD  
+.................... void linha_1_lcd(unsigned char);//coloca o cursor em uma posição na linha 1 max 16 
+.................... void linha_2_lcd(unsigned char);//coloca o cursor em uma posição na linha 2 max 16 
+....................  
+.................... void linha_1_lcd(posicao) 
+....................    { 
+....................    if(posicao >16){posicao = 16;}//como a ultima posição é 16, não deixa ser maior 
+*
+0063:  MOVF   21,W
+0064:  SUBLW  10
+0065:  BTFSC  03.0
+0066:  GOTO   06A
+0067:  MOVLW  10
+0068:  MOVWF  21
+....................    else if (posicao == 0){posicao = 1;}//faz sempre posição ser no minimo 1 
+0069:  GOTO   06F
+006A:  MOVF   21,F
+006B:  BTFSS  03.2
+006C:  GOTO   06F
+006D:  MOVLW  01
+006E:  MOVWF  21
+....................    comando_lcd((0b10000000 + posicao)-1);//vai para a segunda linha 
+006F:  MOVLW  80
+0070:  ADDWF  21,W
+0071:  ADDLW  FF
+0072:  MOVWF  23
+0073:  MOVWF  24
+0074:  CALL   019
+....................    } 
+0075:  RETLW  00
+....................  
+.................... void linha_2_lcd(posicao) 
+....................    { 
+....................    if(posicao >16){posicao = 16;}//como a ultima posição é 16, não deixa ser maior 
+....................    else if (posicao == 0){posicao = 1;}//faz sempre posição ser no minimo 1 
+....................    comando_lcd((0b11000000  + posicao)-1);//vai para a segunda linha 
+....................    } 
+....................  
+.................... void configura_lcd(void) 
+....................    { 
+....................    quatro_bit_lcd();//Chama a rotina que inicializa a comunicação com o LCD a 4 bits 
+....................    comando_lcd(0b00101000);//LCD 4 bits(4), 2 linhas(3), caracter 5*7(2) 
+*
+004B:  MOVLW  28
+004C:  MOVWF  24
+004D:  CALL   019
+....................    comando_lcd(0b00001100);//Display ligado(2), cursor desligado(1), sem cursor(0) 
+004E:  MOVLW  0C
+004F:  MOVWF  24
+0050:  CALL   019
+....................    comando_lcd(0b00010100);//Cursor movimenta(3), Cursor movimenta para a direita a cada caracter(2) - irrelevante, pois o cursor esta desligado 
+0051:  MOVLW  14
+0052:  MOVWF  24
+0053:  CALL   019
+....................    } 
+0054:  BCF    0A.3
+0055:  BCF    0A.4
+0056:  GOTO   211 (RETURN)
+....................  
+.................... void inicio_lcd(void)//rotina que coloca o cursor do display no inicio, mas não limpa o display 
+....................    { 
+....................    comando_lcd(0b00000010);//Cursor no inicio(1) 
+0057:  MOVLW  02
+0058:  MOVWF  24
+0059:  CALL   019
+....................    } 
+005A:  BCF    0A.3
+005B:  BCF    0A.4
+005C:  GOTO   212 (RETURN)
+....................  
+.................... void limpa_lcd(void)//rotina que envia o comando para limpar todos os dados do LCD 
+....................    { 
+....................    comando_lcd(0b00000001);//limpa display (0) 
+005D:  MOVLW  01
+005E:  MOVWF  24
+005F:  CALL   019
+....................    } 
+0060:  BCF    0A.3
+0061:  BCF    0A.4
+0062:  GOTO   213 (RETURN)
+....................  
+.................... void caracter_lcd(caracter)//Rotina para enviar um caracter para o LCD 
+....................    { 
+....................    unsigned char caracter_temp = 0;//Armazena o caracter temporariamente 
+*
+0076:  CLRF   28
+....................    RS = 1;//Coloca o LCD para receber um caracter 
+0077:  BSF    08.3
+....................    EN = 0;//Confirma que esta desabilitado 
+0078:  BCF    08.2
+....................     
+....................    caracter_temp = caracter;//Salva o caracter original 
+0079:  MOVF   27,W
+007A:  MOVWF  28
+....................     
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+007B:  BCF    08.7
+....................    bit_clear(LCD,6); 
+007C:  BCF    08.6
+....................    bit_clear(LCD,5); 
+007D:  BCF    08.5
+....................    bit_clear(LCD,4); 
+007E:  BCF    08.4
+....................     
+....................    bit_clear(caracter,0);//Limpa os bits menos significativos do caracter 
+007F:  BCF    27.0
+....................    bit_clear(caracter,1); 
+0080:  BCF    27.1
+....................    bit_clear(caracter,2); 
+0081:  BCF    27.2
+....................    bit_clear(caracter,3); 
+0082:  BCF    27.3
+....................     
+....................    LCD = LCD + caracter;//Envia os bits mais significativos para o LCD sem alterar os outros pinos do PORTD 
+0083:  MOVF   27,W
+0084:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0085:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0086:  MOVLW  02
+0087:  MOVWF  29
+0088:  CALL   004
+....................    EN = 0; 
+0089:  BCF    08.2
+....................    
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+008A:  BCF    08.7
+....................    bit_clear(LCD,6); 
+008B:  BCF    08.6
+....................    bit_clear(LCD,5); 
+008C:  BCF    08.5
+....................    bit_clear(LCD,4); 
+008D:  BCF    08.4
+....................     
+....................    swap(caracter_temp);//Troca os Bits mais significativos pelos menos significativos 
+008E:  SWAPF  28,F
+....................     
+....................    bit_clear(caracter_temp,0);//Limpa os bits menos significativos do caracter_temp 
+008F:  BCF    28.0
+....................    bit_clear(caracter_temp,1); 
+0090:  BCF    28.1
+....................    bit_clear(caracter_temp,2); 
+0091:  BCF    28.2
+....................    bit_clear(caracter_temp,3); 
+0092:  BCF    28.3
+....................     
+....................    LCD = LCD + caracter_temp;//Envia os bits mais significativos para o LCD sem alterar os outros pinos do PORTD 
+0093:  MOVF   28,W
+0094:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0095:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0096:  MOVLW  02
+0097:  MOVWF  29
+0098:  CALL   004
+....................    EN = 0; 
+0099:  BCF    08.2
+....................    RS = 0;    
+009A:  BCF    08.3
+....................    } 
+009B:  RETLW  00
+....................  
+.................... void comando_lcd(comando)//Rotina para enviar um comando para o LCD 
+....................    { 
+....................    unsigned char com_temp = 0;//Variável para salvar o valor original do comando 
+*
+0019:  CLRF   25
+....................    RS = 0;//Coloca o LCD para receber um comando 
+001A:  BCF    08.3
+....................    EN = 0;//Confirma que esta desabilitado 
+001B:  BCF    08.2
+....................     
+....................    com_temp = comando;//Salva uma cópia do comando 
+001C:  MOVF   24,W
+001D:  MOVWF  25
+....................     
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+001E:  BCF    08.7
+....................    bit_clear(LCD,6); 
+001F:  BCF    08.6
+....................    bit_clear(LCD,5); 
+0020:  BCF    08.5
+....................    bit_clear(LCD,4); 
+0021:  BCF    08.4
+....................     
+....................    bit_clear(comando,0);//Limpa os bits menos significativos do comando 
+0022:  BCF    24.0
+....................    bit_clear(comando,1); 
+0023:  BCF    24.1
+....................    bit_clear(comando,2); 
+0024:  BCF    24.2
+....................    bit_clear(comando,3); 
+0025:  BCF    24.3
+....................     
+....................    LCD = LCD + comando;//Envia os bits mais significativos para o LCD sem alterar os outros pinos do PORTD 
+0026:  MOVF   24,W
+0027:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0028:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0029:  MOVLW  02
+002A:  MOVWF  29
+002B:  CALL   004
+....................    EN = 0; 
+002C:  BCF    08.2
+....................  
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+002D:  BCF    08.7
+....................    bit_clear(LCD,6); 
+002E:  BCF    08.6
+....................    bit_clear(LCD,5); 
+002F:  BCF    08.5
+....................    bit_clear(LCD,4); 
+0030:  BCF    08.4
+....................  
+....................  
+....................    swap(com_temp);//Troca os Bits mais significativos pelos menos significativos 
+0031:  SWAPF  25,F
+....................  
+....................    bit_clear(com_temp,0);//Limpa os bits menos significativos do com_temp 
+0032:  BCF    25.0
+....................    bit_clear(com_temp,1); 
+0033:  BCF    25.1
+....................    bit_clear(com_temp,2); 
+0034:  BCF    25.2
+....................    bit_clear(com_temp,3); 
+0035:  BCF    25.3
+....................     
+....................    LCD = LCD + com_temp;//passa o comando para o barramento de dados do LCD 
+0036:  MOVF   25,W
+0037:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0038:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0039:  MOVLW  02
+003A:  MOVWF  29
+003B:  CALL   004
+....................    EN = 0; 
+003C:  BCF    08.2
+....................    } 
+003D:  RETLW  00
+....................     
+.................... void quatro_bit_lcd()//Rotina para configurar o LCD para trabalhar a 4 bits 
+....................    { 
+....................    RS = 0;//Coloca o LCD para receber um comando 
+003E:  BCF    08.3
+....................    EN = 0;//Confirma que esta desabilitado 
+003F:  BCF    08.2
+....................  
+....................    bit_clear(LCD,7);//Limpa os pinos do PORTD (LCD) de D4 a D7 
+0040:  BCF    08.7
+....................    bit_clear(LCD,6); 
+0041:  BCF    08.6
+....................    bit_clear(LCD,5); 
+0042:  BCF    08.5
+....................    bit_clear(LCD,4); 
+0043:  BCF    08.4
+....................     
+....................    LCD = LCD + 0b00100000;//Envia o comando para o LCD trabalhar a 4 bits sem alterar os outros bits do PORTD 
+0044:  MOVLW  20
+0045:  ADDWF  08,F
+....................    EN = 1;//Informa para o LCD que os dados estão no barramento 
+0046:  BSF    08.2
+....................     
+....................    delay_ms(2);//aguarda o tempo de execução, em média 2ms 
+0047:  MOVLW  02
+0048:  MOVWF  29
+0049:  CALL   004
+....................    EN = 0; 
+004A:  BCF    08.2
+....................    } 
+....................  
+.................... /****************************************************************************** 
+.................... *  Ligações do LCD                                                            * 
+.................... *   D7 -> RD7 (PORTD 7)                                                       * 
+.................... *   D6 -> RD6 (PORTD 6)                                                       * 
+.................... *   D5 -> RD5 (PORTD 5)                                                       * 
+.................... *   D4 -> RD4 (PORTD 4)                                                       * 
+.................... *   RS -> RD3 (PORTD 3)                                                       * 
+.................... *   EN -> RD2 (PORTD 2)                                                       * 
+.................... *   R/W -> Deve ser conectado ao GND                                          * 
+.................... *   VCC -> Deve ser conectado ao +5V                                          * 
+.................... *   GND -> Deve ser conectado ao GND                                          * 
+.................... *   VO -> Deve ser conectado ao potenciômetro/trimpot de ajuste de brilho     * 
+.................... ******************************************************************************/ 
+....................  
+.................... /****************************************************************************** 
+.................... * Ligações do Sensor HC-SR04                                                  * 
+.................... *  Trig -> Pino RC0 do PORTC                                                  * 
+.................... *  Echo -> Pino RC1 do PORTC                                                  * 
+.................... *  VCC -> Deve ser conectado ao +5V                                           * 
+.................... *  GND -> Deve ser conectado ao GND                                           * 
+.................... ******************************************************************************/ 
+....................    
+.................... #use fast_io(c)//O Controle de direção (Entrada/Saida) dos pinos será feito no programa 
+.................... #use fast_io(d)//O Controle de direção (Entrada/Saida) dos pinos será feito no programa 
+....................  
+.................... #byte PORTC = 0x07//Endereço do PORTC 
+.................... #byte PORTD = 0x08//Endereço do PORTD 
+....................  
+.................... #bit Trig = PORTC.0 //pino que dispara o ultrasom 
+.................... #bit Echo = PORTC.1 //pino que lê a resposta 
+....................  
+....................  
+.................... //Declaração de funções 
+.................... unsigned int16 ler_US(void); //função que lê e retorna a distância em mm 
+.................... void exibe_distancia(unsigned int16);//rotina que converte a distância em caracteres e envia para o LCD 
+....................  
+.................... void main() 
+.................... { 
+*
+01A6:  MOVF   03,W
+01A7:  ANDLW  1F
+01A8:  MOVWF  03
+01A9:  MOVLW  57
+01AA:  MOVWF  77
+01AB:  MOVLW  20
+01AC:  MOVWF  04
+01AD:  BCF    03.7
+01AE:  CLRF   00
+01AF:  INCF   04,F
+01B0:  DECFSZ 77,F
+01B1:  GOTO   1AE
+01B2:  CLRF   78
+01B3:  CLRF   79
+01B4:  CLRF   7A
+01B5:  CLRF   7B
+01B6:  CLRF   7C
+01B7:  CLRF   7D
+01B8:  CLRF   7E
+01B9:  MOVLW  50
+01BA:  MOVWF  77
+01BB:  MOVLW  A0
+01BC:  MOVWF  04
+01BD:  BCF    03.7
+01BE:  CLRF   00
+01BF:  INCF   04,F
+01C0:  DECFSZ 77,F
+01C1:  GOTO   1BE
+01C2:  MOVLW  60
+01C3:  MOVWF  77
+01C4:  MOVLW  10
+01C5:  MOVWF  04
+01C6:  BSF    03.7
+01C7:  CLRF   00
+01C8:  INCF   04,F
+01C9:  DECFSZ 77,F
+01CA:  GOTO   1C7
+01CB:  BCF    03.7
+01CC:  MOVLW  60
+01CD:  MOVWF  77
+01CE:  MOVLW  90
+01CF:  MOVWF  04
+01D0:  BSF    03.7
+01D1:  CLRF   00
+01D2:  INCF   04,F
+01D3:  DECFSZ 77,F
+01D4:  GOTO   1D1
+01D5:  BCF    03.7
+01D6:  CLRF   20
+01D7:  CLRF   04
+01D8:  BCF    03.7
+01D9:  MOVLW  1F
+01DA:  ANDWF  03,F
+01DB:  BSF    03.5
+01DC:  BSF    1F.0
+01DD:  BSF    1F.1
+01DE:  BSF    1F.2
+01DF:  BCF    1F.3
+01E0:  MOVLW  07
+01E1:  MOVWF  1C
+....................  
+....................    setup_adc_ports(NO_ANALOGS); 
+01E2:  BSF    1F.0
+01E3:  BSF    1F.1
+01E4:  BSF    1F.2
+01E5:  BCF    1F.3
+....................    setup_adc(ADC_OFF); 
+01E6:  BCF    03.5
+01E7:  BCF    1F.0
+....................    setup_psp(PSP_DISABLED); 
+01E8:  BSF    03.5
+01E9:  BCF    09.4
+....................    setup_spi(SPI_SS_DISABLED); 
+01EA:  BCF    03.5
+01EB:  BCF    14.5
+01EC:  MOVLW  01
+01ED:  MOVWF  14
+01EE:  MOVLW  00
+01EF:  BSF    03.5
+01F0:  MOVWF  14
+....................    setup_timer_0(RTCC_INTERNAL|RTCC_DIV_2); 
+01F1:  MOVF   01,W
+01F2:  ANDLW  C0
+01F3:  MOVWF  01
+....................    setup_timer_1(T1_INTERNAL | T1_DIV_BY_2); 
+01F4:  MOVLW  95
+01F5:  BCF    03.5
+01F6:  MOVWF  10
+....................    setup_timer_2(T2_DISABLED,0,1); 
+01F7:  MOVLW  00
+01F8:  MOVWF  78
+01F9:  MOVWF  12
+01FA:  MOVLW  00
+01FB:  BSF    03.5
+01FC:  MOVWF  12
+....................    setup_comparator(NC_NC_NC_NC); 
+01FD:  MOVLW  07
+01FE:  MOVWF  1C
+01FF:  MOVF   05,W
+0200:  MOVLW  03
+0201:  MOVWF  77
+0202:  DECFSZ 77,F
+0203:  GOTO   202
+0204:  MOVF   1C,W
+0205:  BCF    03.5
+0206:  BCF    0D.6
+....................    setup_vref(FALSE); 
+0207:  BSF    03.5
+0208:  CLRF   1D
+....................     
+....................    // TODO: USER CODE!! 
+....................     
+....................    //Os Pinos RD2 a RD7 são usados pelo LCD, os pinos RD0 e RD1 estão livre para uso 
+....................    set_tris_d(0b00000000);//Configurando todos os pinos como saída 
+0209:  MOVLW  00
+020A:  MOVWF  08
+....................    //Os pinos Trig e Echo estão conectados no PORTC, Trig -> RC0 e Echo -> RC1 
+....................    set_tris_c(0b00000010);//Pino RC1 como entrada e o restante como saída 
+020B:  MOVLW  02
+020C:  MOVWF  07
+....................     
+....................    PORTC = 0;//Inicia com todos os pinos que forem saída em zero 
+020D:  BCF    03.5
+020E:  CLRF   07
+....................    PORTD = 0;//Inicia com todos os pinos que forem saída em zero 
+020F:  CLRF   08
+....................    
+....................    configura_lcd();//Chama a rotina que faz as configurações básica para o LCD funcionar 
+0210:  GOTO   03E
+....................    inicio_lcd();//Coloca o cursor no inicio 
+0211:  GOTO   057
+....................    limpa_lcd();//Limpra o LCD 
+0212:  GOTO   05D
+....................     
+....................    linha_1_lcd(4);//Começa a escrever apartir do caracter 4 na primeira linha 
+0213:  MOVLW  04
+0214:  MOVWF  21
+0215:  CALL   063
+....................    caracter_lcd('D'); 
+0216:  MOVLW  44
+0217:  MOVWF  27
+0218:  CALL   076
+....................    caracter_lcd('I'); 
+0219:  MOVLW  49
+021A:  MOVWF  27
+021B:  CALL   076
+....................    caracter_lcd('S'); 
+021C:  MOVLW  53
+021D:  MOVWF  27
+021E:  CALL   076
+....................    caracter_lcd('T'); 
+021F:  MOVLW  54
+0220:  MOVWF  27
+0221:  CALL   076
+....................    caracter_lcd(':'); 
+0222:  MOVLW  3A
+0223:  MOVWF  27
+0224:  CALL   076
+....................    caracter_lcd(' '); 
+0225:  MOVLW  20
+0226:  MOVWF  27
+0227:  CALL   076
+....................    
+....................    while(1)//Loop infinito do programa 
+....................       { 
+....................       linha_1_lcd(10);//Imprime a distância apartir do caracter 10 
+0228:  MOVLW  0A
+0229:  MOVWF  21
+022A:  CALL   063
+....................        
+....................       delay_ms(250); //Garante o tempo minimo para aquisição de nova distancia (O fabricante exige minimo 50ms) 
+022B:  MOVLW  FA
+022C:  MOVWF  29
+022D:  CALL   004
+....................       exibe_distancia(ler_US());//Chama a rotina que exibe a distancia no LCD, e passa como parametro a distancia lida em ler_US() 
+022E:  GOTO   0C1
+022F:  MOVF   79,W
+0230:  MOVWF  22
+0231:  MOVF   78,W
+0232:  MOVWF  21
+0233:  MOVF   79,W
+0234:  MOVWF  24
+0235:  MOVF   78,W
+0236:  MOVWF  23
+0237:  GOTO   118
+....................       } 
+0238:  GOTO   228
+....................  
+.................... } 
+....................  
+.................... unsigned int16 ler_US(void)//Esta rotina realiza a leitura da distancia e a retorna em mm 
+....................    { 
+0239:  SLEEP
+....................    unsigned int16 vl_timer = 0;//Variavel para armazenar o tempo 
+*
+00C1:  CLRF   21
+00C2:  CLRF   22
+....................    unsigned int16 distancia = 0;//Armazena a distancia convertida 
+00C3:  CLRF   23
+00C4:  CLRF   24
+....................    Trig = 1;//Dispara o Ultrasom 
+00C5:  BSF    07.0
+....................    delay_us(20);//Aguarda um tempo (minimo de 10us) 
+00C6:  MOVLW  06
+00C7:  MOVWF  77
+00C8:  DECFSZ 77,F
+00C9:  GOTO   0C8
+00CA:  NOP
+....................    Trig = 0;//Volta para 0 (zero) 
+00CB:  BCF    07.0
+....................     
+....................    while(!Echo){}//Aguarda começar a enviar a resposta 
+00CC:  BTFSS  07.1
+00CD:  GOTO   0CC
+....................     
+....................    set_timer1(0);//Reinicia o TIMER1 
+00CE:  CLRF   0F
+00CF:  CLRF   0E
+....................           
+....................    while(Echo){}//Fica parado até receber a resposta 
+00D0:  BTFSC  07.1
+00D1:  GOTO   0D0
+....................     
+....................    vl_timer = get_timer1();//Le o tempo em que ficou recebendo a resposta (Tempo de instrução / 2 em uS) 
+00D2:  MOVF   0F,W
+00D3:  MOVWF  7A
+00D4:  MOVF   0E,W
+00D5:  MOVWF  77
+00D6:  MOVF   0F,W
+00D7:  SUBWF  7A,W
+00D8:  BTFSS  03.2
+00D9:  GOTO   0D2
+00DA:  MOVF   77,W
+00DB:  MOVWF  21
+00DC:  MOVF   7A,W
+00DD:  MOVWF  22
+....................  
+....................    distancia = ((((vl_timer * 2) * 10) / 58) + 10);//Como o divisor do TIMER1 estar 1:2, multiplicamos por 10, passo para mm (x 10) e converto ( / 58) 
+00DE:  BCF    03.0
+00DF:  RLF    21,W
+00E0:  MOVWF  25
+00E1:  RLF    22,W
+00E2:  MOVWF  26
+00E3:  MOVF   26,W
+00E4:  MOVWF  28
+00E5:  MOVF   25,W
+00E6:  MOVWF  27
+00E7:  CLRF   2A
+00E8:  MOVLW  0A
+00E9:  MOVWF  29
+*
+00FE:  MOVF   79,W
+00FF:  MOVWF  27
+0100:  MOVF   78,W
+0101:  MOVWF  26
+0102:  MOVF   79,W
+0103:  MOVWF  29
+0104:  MOVF   78,W
+0105:  MOVWF  28
+0106:  CLRF   2B
+0107:  MOVLW  3A
+0108:  MOVWF  2A
+0109:  CALL   09C
+010A:  MOVLW  0A
+010B:  ADDWF  78,W
+010C:  MOVWF  23
+010D:  MOVF   79,W
+010E:  MOVWF  24
+010F:  BTFSC  03.0
+0110:  INCF   24,F
+....................    return distancia;//A função retorna o valor convertido em mm 
+0111:  MOVF   23,W
+0112:  MOVWF  78
+0113:  MOVF   24,W
+0114:  MOVWF  79
+....................    } 
+0115:  BCF    0A.3
+0116:  BCF    0A.4
+0117:  GOTO   22F (RETURN)
+....................  
+.................... void exibe_distancia(unsigned int16 distancia)//Rotina responsavel por converter em caracter e enviar a distância 
+....................    { 
+....................    unsigned int16 x;//declara uma váriavel auxiliar 
+....................     
+....................    x = distancia / 10000;//Pega a dezena de milhar(Ex: 12345, pega apenas o '1') Inteiro de 12345/10000 
+0118:  MOVF   24,W
+0119:  MOVWF  29
+011A:  MOVF   23,W
+011B:  MOVWF  28
+011C:  MOVLW  27
+011D:  MOVWF  2B
+011E:  MOVLW  10
+011F:  MOVWF  2A
+0120:  CALL   09C
+0121:  MOVF   79,W
+0122:  MOVWF  26
+0123:  MOVF   78,W
+0124:  MOVWF  25
+....................    x = x + 48; //Converte em caracter ASCII 
+0125:  MOVLW  30
+0126:  ADDWF  25,F
+0127:  BTFSC  03.0
+0128:  INCF   26,F
+....................    caracter_lcd(x);//Envia para o LCD 
+0129:  MOVF   25,W
+012A:  MOVWF  27
+012B:  CALL   076
+....................     
+....................    x = distancia / 1000;//Pega a Dezena e Unidade de Milhar (Ex: 12345, pega '12') Inteiro de 12345/1000 
+012C:  MOVF   24,W
+012D:  MOVWF  29
+012E:  MOVF   23,W
+012F:  MOVWF  28
+0130:  MOVLW  03
+0131:  MOVWF  2B
+0132:  MOVLW  E8
+0133:  MOVWF  2A
+0134:  CALL   09C
+0135:  MOVF   79,W
+0136:  MOVWF  26
+0137:  MOVF   78,W
+0138:  MOVWF  25
+....................    x = x % 10; //Pega a Unidade de milhar (Ex: 12345, pega apenas '2') resto da divisão 12/10 
+0139:  MOVF   26,W
+013A:  MOVWF  29
+013B:  MOVF   25,W
+013C:  MOVWF  28
+013D:  CLRF   2B
+013E:  MOVLW  0A
+013F:  MOVWF  2A
+0140:  CALL   09C
+0141:  MOVF   77,W
+0142:  MOVWF  25
+0143:  MOVF   7A,W
+0144:  MOVWF  26
+....................    x = x + 48; //Converte em caracter ASCII 
+0145:  MOVLW  30
+0146:  ADDWF  25,F
+0147:  BTFSC  03.0
+0148:  INCF   26,F
+....................    caracter_lcd(x); //Envia para o LCD 
+0149:  MOVF   25,W
+014A:  MOVWF  27
+014B:  CALL   076
+....................     
+....................    x = distancia / 100; //Pega dezena, unidade de milhar e a centena (Ex:12345, pega '123') Inteiro de 12345/100 
+014C:  MOVF   24,W
+014D:  MOVWF  29
+014E:  MOVF   23,W
+014F:  MOVWF  28
+0150:  CLRF   2B
+0151:  MOVLW  64
+0152:  MOVWF  2A
+0153:  CALL   09C
+0154:  MOVF   79,W
+0155:  MOVWF  26
+0156:  MOVF   78,W
+0157:  MOVWF  25
+....................    x = x % 10; //Pega a centena (Ex: 12345, pega apenas '3') o resto da divisão 123/10 
+0158:  MOVF   26,W
+0159:  MOVWF  29
+015A:  MOVF   25,W
+015B:  MOVWF  28
+015C:  CLRF   2B
+015D:  MOVLW  0A
+015E:  MOVWF  2A
+015F:  CALL   09C
+0160:  MOVF   77,W
+0161:  MOVWF  25
+0162:  MOVF   7A,W
+0163:  MOVWF  26
+....................    x = x + 48; //Converte em caracter ASCII 
+0164:  MOVLW  30
+0165:  ADDWF  25,F
+0166:  BTFSC  03.0
+0167:  INCF   26,F
+....................    caracter_lcd(x);//Envia para o LCD 
+0168:  MOVF   25,W
+0169:  MOVWF  27
+016A:  CALL   076
+....................     
+....................    x = distancia / 10; //Pega dezena e unidade de milhar, centena e desena (Ex: 12345, pega '1234') Inteiro de 12345/10 
+016B:  MOVF   24,W
+016C:  MOVWF  29
+016D:  MOVF   23,W
+016E:  MOVWF  28
+016F:  CLRF   2B
+0170:  MOVLW  0A
+0171:  MOVWF  2A
+0172:  CALL   09C
+0173:  MOVF   79,W
+0174:  MOVWF  26
+0175:  MOVF   78,W
+0176:  MOVWF  25
+....................    x = x % 10; //Pega a dezena (Ex: 12345, pega apenas '4') o resto da divisão 1234/10 
+0177:  MOVF   26,W
+0178:  MOVWF  29
+0179:  MOVF   25,W
+017A:  MOVWF  28
+017B:  CLRF   2B
+017C:  MOVLW  0A
+017D:  MOVWF  2A
+017E:  CALL   09C
+017F:  MOVF   77,W
+0180:  MOVWF  25
+0181:  MOVF   7A,W
+0182:  MOVWF  26
+....................    x = x + 48;//Converte em caracter ASCII 
+0183:  MOVLW  30
+0184:  ADDWF  25,F
+0185:  BTFSC  03.0
+0186:  INCF   26,F
+....................    caracter_lcd(x);//Envia para o LCD 
+0187:  MOVF   25,W
+0188:  MOVWF  27
+0189:  CALL   076
+....................     
+....................    x = distancia % 10;//Pega a unidade (Ex: 12345, pega apenas '5')  Resto de 12345/10 
+018A:  MOVF   24,W
+018B:  MOVWF  29
+018C:  MOVF   23,W
+018D:  MOVWF  28
+018E:  CLRF   2B
+018F:  MOVLW  0A
+0190:  MOVWF  2A
+0191:  CALL   09C
+0192:  MOVF   77,W
+0193:  MOVWF  25
+0194:  MOVF   7A,W
+0195:  MOVWF  26
+....................    x = x + 48;//Converte em caracter ASCII 
+0196:  MOVLW  30
+0197:  ADDWF  25,F
+0198:  BTFSC  03.0
+0199:  INCF   26,F
+....................    caracter_lcd(x);//Envia para o LCD 
+019A:  MOVF   25,W
+019B:  MOVWF  27
+019C:  CALL   076
+....................    caracter_lcd('m'); 
+019D:  MOVLW  6D
+019E:  MOVWF  27
+019F:  CALL   076
+....................    caracter_lcd('m');//Exibe mm    
+01A0:  MOVLW  6D
+01A1:  MOVWF  27
+01A2:  CALL   076
+....................    } 
+01A3:  BCF    0A.3
+01A4:  BCF    0A.4
+01A5:  GOTO   238 (RETURN)
+....................  
+
+Configuration Fuses:
+   Word  1: 3F39   XT NOWDT NOPUT NODEBUG NOPROTECT NOBROWNOUT NOLVP NOCPD NOWRT

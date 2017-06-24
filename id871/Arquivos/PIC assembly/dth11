@@ -1,0 +1,15 @@
+ ;***************************************************************************************************************************
+;*					Projeto: Automação com inteligencia (PIC 'A' comunicação com o PC)                           		   *
+;*		              	Inicio: 01/10/2011 Termino:        Revisto em:								                       *
+;*					desenvolvido por: Misael Sales 
+;***************************************************************************************************************************
+
+;DESENVOLVIDO PARA TRABALHAR COM CRISTAL DE 4MHz
+
+;******************************** DEFINIÇÕES INICIAIS **********************************************************************
+
+	INCLUDE <P16F877A.INC>  ;INCLUIR UM ARQUIVO QUE NOMEIA TODOS OS INDEREÇOS FISICOS DO PIC
+	
+	__CONFIG _CP_OFF & _DEBUG_OFF & _WRT_OFF  & _CPD_OFF & _LVP_OFF & _BODEN_OFF & _PWRTE_ON & _WDT_OFF & _XT_OSC 
+
+	ERRORLEVEL -302		;NÃO INTERPRETAR O ERRO DE NUMERO 302

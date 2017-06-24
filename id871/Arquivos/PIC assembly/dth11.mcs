@@ -1,0 +1,57 @@
+[Header]
+MagicCookie={0b13fe8c-dfe0-40eb-8900-6712719559a7}
+Version=1.0
+[File000]
+Location=D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\PIC assembly\dth11.err
+Folder=Intermediary
+DeviceName=PIC16F877A
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Arquivos de programas\Sniper\MPASMWIN.EXE
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|dth11.asm||<obj>||<lib>||<lkr>||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+DebugOptions=
+[File001]
+Location=D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\PIC assembly\dth11.cod
+Folder=Output
+DeviceName=PIC16F877A
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Arquivos de programas\Sniper\MPASMWIN.EXE
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|dth11.asm||<obj>||<lib>||<lkr>||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+DebugOptions=
+[File002]
+Location=D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\PIC assembly\dth11.hex
+Folder=Output
+DeviceName=PIC16F877A
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Arquivos de programas\Sniper\MPASMWIN.EXE
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|dth11.asm||<obj>||<lib>||<lkr>||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+DebugOptions=
+[File003]
+Location=D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\PIC assembly\dth11.lst
+Folder=Output
+DeviceName=PIC16F877A
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Arquivos de programas\Sniper\MPASMWIN.EXE
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|dth11.asm||<obj>||<lib>||<lkr>||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+DebugOptions=
+[TOOL_LOC_STAMPS]
+tool_loc{49D3CA3F-D9A3-4518-9943-226A347E8CC7}=C:\Arquivos de programas\Sniper\MPASMWIN.EXE

@@ -1,0 +1,101 @@
+004-005 @READ_PROGRAM_MEMORY8.P1
+004     @WRITE_PROGRAM_MEMORY8.P2
+007     PORTC
+007.0   SENSOR
+008     PORTD
+008     LCD
+008     PSP_DATA
+008.2   EN
+008.3   RS
+015     CCP_1_LOW
+015-016 CCP_1
+016     CCP_1_HIGH
+01B-01C CCP_2
+01B     CCP_2_LOW
+01C     CCP_2_HIGH
+020     TRISC
+020.0   DIR_SENSOR
+021     RH_1
+022     RH_2
+023     TEMP_1
+024     TEMP_2
+025     CKSUN
+026     n_byte
+027     timeOut
+028     tempo
+029     exibe_dado.dado
+029     linha_2_lcd.posicao
+029     linha_1_lcd.posicao
+029     MAIN.@SCRATCH1
+02A     exibe_dado.x
+02A     linha_1_lcd.@SCRATCH1
+02A     linha_2_lcd.@SCRATCH1
+02A     MAIN.@SCRATCH2
+02B     @DIV88.P1
+02B     caracter_lcd.caracter
+02B     linha_1_lcd.@SCRATCH2
+02B     linha_2_lcd.@SCRATCH2
+02B     MAIN.@SCRATCH3
+02C     caracter_lcd.caracter_temp
+02C     @DIV88.P1
+02C     comando_lcd.comando
+02D     comando_lcd.com_temp
+02D     @DIV88.@SCRATCH1
+02E     @delay_ms1.P1
+077     @SCRATCH
+078     @SCRATCH
+078     _RETURN_
+079     @SCRATCH
+07A     @SCRATCH
+07B     @SCRATCH
+09C.6   C1OUT
+09C.7   C2OUT
+10D-10E @WRITE_PROGRAM_MEMORY8.P1
+10D-10E @READ_PROGRAM_MEMORY8.P2
+
+ROM Allocation:
+0004  @delay_ms1
+0061  linha_1_lcd
+009A  linha_2_lcd
+003E  configura_lcd
+0057  inicio_lcd
+005D  limpa_lcd
+0074  caracter_lcd
+0019  comando_lcd
+003E  quatro_bit_lcd
+02B6  MAIN
+0295  exibe_dado
+0280  @DIV88
+0221  ler_sensor
+00AD  ler_byte
+02B6  @cinit
+
+Project Directory:
+    D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\PIC C\
+
+Project Files:
+    dth11_pic.c
+    C:\Arquivos de programas\PICC\devices\16F877A.h
+    LCD_MSS.h
+
+Units:
+    D:\Projetos\Produtos ML\Sensor de Umidade Temperatura DTH11\PIC C\dth11_pic.c (main)
+
+Compiler Settings:
+    Processor:      PIC16F877A
+    Pointer Size:   16
+    ADC Range:      0-255
+    Opt Level:      9
+    Short,Int,Long: UNSIGNED: 1,8,16
+    Float,Double:   32,32
+
+Output Files:
+    Errors:      dth11_pic.err
+    Ext Symbols: dth11_pic.esym
+    INHX8:       dth11_pic.hex
+    Symbols:     dth11_pic.sym
+    List:        dth11_pic.lst
+    Debug/COFF:  dth11_pic.cof
+    Project:     dth11_pic.PJT
+    Call Tree:   dth11_pic.tre
+    Statistics:  dth11_pic.sta
